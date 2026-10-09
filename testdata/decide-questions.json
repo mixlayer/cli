@@ -1,1 +1,0 @@
-{"dup":{"type":"noul","instructions":"Is this a duplicate charge?","criteria":{"true":"More than one charge for the same order","false":"Only one charge for the order"}}}

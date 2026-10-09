@@ -1,0 +1,179 @@
+{
+  "min_recall": 0,
+  "results": [
+    {
+      "by_kind": {
+        "ACCOUNT": {
+          "counts": {
+            "correct": 0,
+            "detected": 0,
+            "found": 0,
+            "gold": 2,
+            "leaked": 2
+          },
+          "leak_rate": 1,
+          "precision": 1,
+          "recall": 0
+        },
+        "ADDRESS": {
+          "counts": {
+            "correct": 0,
+            "detected": 0,
+            "found": 0,
+            "gold": 3,
+            "leaked": 3
+          },
+          "leak_rate": 1,
+          "precision": 1,
+          "recall": 0
+        },
+        "DATE_OF_BIRTH": {
+          "counts": {
+            "correct": 0,
+            "detected": 0,
+            "found": 0,
+            "gold": 2,
+            "leaked": 2
+          },
+          "leak_rate": 1,
+          "precision": 1,
+          "recall": 0
+        },
+        "EMAIL": {
+          "counts": {
+            "correct": 3,
+            "detected": 3,
+            "found": 3,
+            "gold": 3,
+            "leaked": 0
+          },
+          "leak_rate": 0,
+          "precision": 1,
+          "recall": 1
+        },
+        "ID_NUMBER": {
+          "counts": {
+            "correct": 2,
+            "detected": 2,
+            "found": 2,
+            "gold": 2,
+            "leaked": 0
+          },
+          "leak_rate": 0,
+          "precision": 1,
+          "recall": 1
+        },
+        "IP": {
+          "counts": {
+            "correct": 1,
+            "detected": 1,
+            "found": 1,
+            "gold": 1,
+            "leaked": 0
+          },
+          "leak_rate": 0,
+          "precision": 1,
+          "recall": 1
+        },
+        "LOCATION": {
+          "counts": {
+            "correct": 0,
+            "detected": 0,
+            "found": 1,
+            "gold": 2,
+            "leaked": 1
+          },
+          "leak_rate": 0.5,
+          "precision": 1,
+          "recall": 0.5
+        },
+        "MEDICAL": {
+          "counts": {
+            "correct": 0,
+            "detected": 0,
+            "found": 0,
+            "gold": 2,
+            "leaked": 2
+          },
+          "leak_rate": 1,
+          "precision": 1,
+          "recall": 0
+        },
+        "ORG": {
+          "counts": {
+            "correct": 0,
+            "detected": 0,
+            "found": 0,
+            "gold": 2,
+            "leaked": 1
+          },
+          "leak_rate": 0.5,
+          "precision": 1,
+          "recall": 0
+        },
+        "PERSON": {
+          "counts": {
+            "correct": 17,
+            "detected": 17,
+            "found": 15,
+            "gold": 18,
+            "leaked": 3
+          },
+          "leak_rate": 0.16666666666666666,
+          "precision": 1,
+          "recall": 0.8333333333333334
+        },
+        "PHONE": {
+          "counts": {
+            "correct": 5,
+            "detected": 5,
+            "found": 5,
+            "gold": 5,
+            "leaked": 0
+          },
+          "leak_rate": 0,
+          "precision": 1,
+          "recall": 1
+        },
+        "SSN": {
+          "counts": {
+            "correct": 1,
+            "detected": 1,
+            "found": 1,
+            "gold": 1,
+            "leaked": 0
+          },
+          "leak_rate": 0,
+          "precision": 1,
+          "recall": 1
+        },
+        "URL": {
+          "counts": {
+            "correct": 1,
+            "detected": 1,
+            "found": 1,
+            "gold": 1,
+            "leaked": 0
+          },
+          "leak_rate": 0,
+          "precision": 1,
+          "recall": 1
+        }
+      },
+      "detector": "regex",
+      "errors": 0,
+      "overall": {
+        "counts": {
+          "correct": 30,
+          "detected": 30,
+          "found": 29,
+          "gold": 44,
+          "leaked": 14
+        },
+        "leak_rate": 0.3181818181818182,
+        "precision": 1,
+        "recall": 0.6590909090909091
+      }
+    }
+  ]
+}

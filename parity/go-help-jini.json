@@ -1,0 +1,222 @@
+{
+ "": {
+  "example": "",
+  "long": "mixlayer is the command line for Mixlayer's OpenAI-compatible API.\n\nStart here:\n  mixlayer auth setup          get an API key\n  mixlayer doctor              check your key and connection\n  mixlayer models list --live-prices\n  mixlayer ask \"question\" --model \u003cmodel-id\u003e\n\nCompare and save:   ladder, escalate, council, compare, savings\nPrivate data:       shield ask, shield scan, shield redact, vault\nLocal ledger:       grep, replay, sql\nAgents:             --agent, agent setup, agent-context, which\n\nAdd --agent to any command for JSON output and no prompts."
+ },
+ "agent": {
+  "example": "",
+  "long": ""
+ },
+ "agent setup": {
+  "example": "",
+  "long": ""
+ },
+ "agent skill": {
+  "example": "",
+  "long": ""
+ },
+ "agent skill path": {
+  "example": "",
+  "long": ""
+ },
+ "agent skill print": {
+  "example": "",
+  "long": ""
+ },
+ "agent skill-ref": {
+  "example": "",
+  "long": ""
+ },
+ "agent-context": {
+  "example": "  mixlayer agent-context --pretty\n  mixlayer agent-context --agent",
+  "long": "Outputs a machine-readable description of commands, flags, and auth so\nagents can introspect this CLI at runtime without parsing --help or\nreading source. Schema is versioned via schema_version."
+ },
+ "ask": {
+  "example": "  mixlayer ask \"Draft a migration plan\" --model qwen/qwen3.6-35b-a3b --show-thinking --json",
+  "long": ""
+ },
+ "auth": {
+  "example": "",
+  "long": ""
+ },
+ "auth logout": {
+  "example": "  mixlayer auth logout",
+  "long": ""
+ },
+ "auth set-token": {
+  "example": "  pbpaste | mixlayer auth set-token",
+  "long": "Save an API key to the local credentials file (mode 0600).\n\nPipe the key on stdin so it stays out of shell history and the process list:\n\n  pbpaste | mixlayer auth set-token\n  mixlayer auth set-token - \u003c key.txt\n\nPassing the key as an argument also works but is not recommended."
+ },
+ "auth setup": {
+  "example": "  mixlayer auth setup\n  mixlayer auth setup --launch",
+  "long": ""
+ },
+ "auth status": {
+  "example": "  mixlayer auth status",
+  "long": ""
+ },
+ "chat": {
+  "example": "  mixlayer chat --model qwen/qwen3",
+  "long": "Create a chat completion for the given model and messages"
+ },
+ "compare": {
+  "example": "  mixlayer compare \"Summarize this incident\" --cheap qwen/qwen3.5-9b --json",
+  "long": ""
+ },
+ "council": {
+  "example": "  mixlayer council \"Pick the safest launch plan\" --json",
+  "long": ""
+ },
+ "decide": {
+  "example": "  mixlayer decide --model \u003cclassification-model\u003e --state-text \"Two charges for one order\" --noul 'dup=Is this a duplicate charge?' --fail-if 'dup\u003e0.8' --agent\n  mixlayer decide --model \u003cclassification-model\u003e --state facts.json --questions questions.json --dry-run --agent",
+  "long": "Evaluate noul, choice and score questions through POST /v1/systemone.\nJSON is returned with --agent or --json; human output is a compact table.\nA matching --fail-if condition exits 9 after printing the response.\nOther exits: 2 invalid input/HTTP 422, 4 auth/permission, 5 API/capacity (529),\n7 rate limit (429), 8 billing (402), 10 configuration.\nRetries: at most three retries for 429/529; Retry-After above 30s returns immediately.\nNoul values are yes scores, not calibrated confidence probabilities."
+ },
+ "decide batch": {
+  "example": "",
+  "long": "Evaluate up to --max-rows rows using shared --questions. Outputs JSONL in completion\norder with one-based row numbers; malformed and rejected rows do not stop later rows.\nAny row failure exits 6 after the summary on stderr. --timeout applies per request.\nJSONL rows must be objects; CSV values are strings. --state-field selects one field.\nDry run prints the first request and row count without opening --out or calling HTTP."
+ },
+ "doctor": {
+  "example": "  mixlayer doctor\n  mixlayer doctor --json\n  mixlayer doctor --fail-on warn\n  mixlayer doctor --fail-on stale",
+  "long": ""
+ },
+ "escalate": {
+  "example": "  mixlayer escalate \"Classify these tickets\" --confidence 0.85 --json\n  mixlayer escalate \"Explain this result\" --checker jini --checker-model \u003cclassification-model\u003e --threshold 0.8 --agent",
+  "long": ""
+ },
+ "grep": {
+  "example": "  mixlayer grep \"migration\" --limit 10 --json",
+  "long": ""
+ },
+ "ladder": {
+  "example": "  mixlayer ladder \"Which option is cheapest?\" --reasoning --json",
+  "long": ""
+ },
+ "models": {
+  "example": "",
+  "long": ""
+ },
+ "models get": {
+  "example": "  mixlayer models get qwen/qwen3.5-9b",
+  "long": ""
+ },
+ "models list": {
+  "example": "  mixlayer models list",
+  "long": ""
+ },
+ "models query": {
+  "example": "  mixlayer models query \"ctx\u003e=128k tools reasoning\" --json",
+  "long": ""
+ },
+ "profile": {
+  "example": "",
+  "long": "Profiles capture a set of flag values under a name so a scheduled\nagent can invoke the same command with the same configuration each run.\n\n  profile save \u003cname\u003e         captures the current invocation's set flags\n  profile use \u003cname\u003e          prints the values (for inspection)\n  profile list                lists all saved profiles\n  profile show \u003cname\u003e         shows the values of one profile\n  profile delete \u003cname\u003e       removes a profile\n\nUse --profile \u003cname\u003e on any command to apply that profile's values.\nExplicit flags override profile values."
+ },
+ "profile delete": {
+  "example": "  mixlayer profile delete my-defaults --yes\n  mixlayer profile delete old-profile --yes --json",
+  "long": ""
+ },
+ "profile list": {
+  "example": "  mixlayer profile list\n  mixlayer profile list --json",
+  "long": ""
+ },
+ "profile save": {
+  "example": "  mixlayer profile save my-defaults --json --compact\n  mixlayer profile save tonight-defaults --region US",
+  "long": "Captures every flag explicitly set on the invocation and stores\nthem under \u003cname\u003e. To update an existing profile, run save again; the\nentry is replaced.\n\nTo avoid creating empty profiles, at least one non-default flag must be\npresent (other than --profile, --config, and --home, which are never\ncaptured: they control profile/config resolution and would never apply)."
+ },
+ "profile show": {
+  "example": "  mixlayer profile show my-defaults\n  mixlayer profile show tonight-defaults --json",
+  "long": ""
+ },
+ "profile use": {
+  "example": "  mixlayer profile use my-defaults\n  mixlayer profile use tonight-defaults --json",
+  "long": ""
+ },
+ "replay": {
+  "example": "  mixlayer replay run_abc123 --json",
+  "long": ""
+ },
+ "savings": {
+  "example": "  mixlayer savings --vs gpt-frontier --json",
+  "long": ""
+ },
+ "shield": {
+  "example": "",
+  "long": ""
+ },
+ "shield ask": {
+  "example": "  mixlayer shield ask \"What segments are at risk?\" --data customer-export.csv --json",
+  "long": ""
+ },
+ "shield audit": {
+  "example": "  mixlayer shield audit --limit 25 --json",
+  "long": ""
+ },
+ "shield dict": {
+  "example": "",
+  "long": ""
+ },
+ "shield dict add": {
+  "example": "  mixlayer shield dict add \"Zora Quill\" --kind PERSON",
+  "long": ""
+ },
+ "shield dict list": {
+  "example": "  mixlayer shield dict list --agent",
+  "long": ""
+ },
+ "shield dict remove": {
+  "example": "  mixlayer shield dict remove \"Zora Quill\"",
+  "long": ""
+ },
+ "shield eval": {
+  "example": "  mixlayer shield eval --sample testdata/shield-eval/synthetic.jsonl --detector regex --min-recall 0 --agent",
+  "long": ""
+ },
+ "shield ingest": {
+  "example": "  mixlayer shield ingest big-export.csv -o masked-corpus.csv --manifest tranches.json",
+  "long": ""
+ },
+ "shield redact": {
+  "example": "  mixlayer shield redact customer-export.csv --diff -o masked.csv",
+  "long": ""
+ },
+ "shield restructure": {
+  "example": "  mixlayer shield restructure customers.csv --bucket --coarsen-dates month --drop email -o safe.csv",
+  "long": ""
+ },
+ "shield scan": {
+  "example": "  mixlayer shield scan customer-export.csv --max-risk 0 --json",
+  "long": ""
+ },
+ "sql": {
+  "example": "  mixlayer sql \"select model, count(*) from runs group by model\" --json",
+  "long": ""
+ },
+ "vault": {
+  "example": "",
+  "long": ""
+ },
+ "vault list": {
+  "example": "  mixlayer vault list --json",
+  "long": ""
+ },
+ "vault purge": {
+  "example": "  mixlayer vault purge --yes --json",
+  "long": ""
+ },
+ "vault rehydrate": {
+  "example": "  mixlayer vault rehydrate masked-answer.txt",
+  "long": ""
+ },
+ "vault rotate": {
+  "example": "  mixlayer vault rotate --json",
+  "long": ""
+ },
+ "version": {
+  "example": "  mixlayer version\n  mixlayer version --agent",
+  "long": ""
+ },
+ "which": {
+  "example": "  mixlayer which \"stale tickets\"\n  mixlayer which \"bottleneck\"\n  mixlayer which --limit 1 \"send message\"\n  mixlayer which                                # list the full capability index",
+  "long": "which resolves a natural-language capability query (for example, \"search messages\" or \"stale tickets\") to the best matching command from this CLI's curated feature index.\n\nExit codes:\n  0  at least one match found\n  2  no confident match - the query did not score against any indexed capability; fall back to '--help' or 'search' if this CLI has one"
+ }
+}

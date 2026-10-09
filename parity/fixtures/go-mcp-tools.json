@@ -1,0 +1,1154 @@
+{
+ "initialize": {
+  "protocolVersion": "2025-06-18",
+  "capabilities": {
+   "tools": {}
+  },
+  "serverInfo": {
+   "name": "Mixlayer",
+   "version": "0.1.0-dev"
+  }
+ },
+ "tools": [
+  {
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Ask one live Mixlayer model and save its answer, token use, and cost in the local ledger. Preview before sending sensitive input.",
+   "inputSchema": {
+    "properties": {
+     "dry_run": {
+      "description": "Preview the request without sending model data or spending credits",
+      "type": "boolean"
+     },
+     "model": {
+      "description": "Model ID selected from the live models_list result",
+      "type": "string"
+     },
+     "question": {
+      "description": "The question or task to send to the selected model",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "type": "object"
+   },
+   "name": "ask"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Create a chat completion for the given model and messages. Required: model, messages. Optional: tools, tool_choice, temperature (plus 3 more).",
+   "inputSchema": {
+    "properties": {
+     "max_tokens": {
+      "description": "Maximum number of tokens to generate",
+      "type": "number"
+     },
+     "messages": {
+      "description": "List of messages comprising the conversation so far",
+      "type": "array"
+     },
+     "model": {
+      "description": "ID of the model to use (e.g. qwen/qwen3.5-4b-free)",
+      "type": "string"
+     },
+     "stream": {
+      "description": "Whether to stream back partial progress",
+      "type": "boolean"
+     },
+     "temperature": {
+      "description": "Sampling temperature to use",
+      "type": "number"
+     },
+     "tool_choice": {
+      "description": "Controls which tool, if any, the model calls",
+      "type": "string"
+     },
+     "tools": {
+      "description": "List of tools the model may call",
+      "type": "array"
+     },
+     "top_p": {
+      "description": "Nucleus sampling probability mass",
+      "type": "number"
+     }
+    },
+    "required": [
+     "model",
+     "messages"
+    ],
+    "type": "object"
+   },
+   "name": "chat_create_completion"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   },
+   "description": "Read the embedded Mixlayer Agent Skill and runtime guidance before choosing a model or sending private data.",
+   "inputSchema": {
+    "properties": {},
+    "required": [],
+    "type": "object"
+   },
+   "name": "context"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Check Mixlayer authentication, API reachability, and resolved local paths; report missing credentials without revealing them.",
+   "inputSchema": {
+    "properties": {},
+    "required": [],
+    "type": "object"
+   },
+   "name": "doctor"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Start with cheaper live models and climb only when an answer is insufficiently confident; save the trial ledger locally.",
+   "inputSchema": {
+    "properties": {
+     "confidence": {
+      "description": "Heuristic confidence threshold from 0 to 1",
+      "type": "number"
+     },
+     "dry_run": {
+      "description": "Preview the request without sending model data or spending credits",
+      "type": "boolean"
+     },
+     "question": {
+      "description": "The question or task to send to the selected model",
+      "type": "string"
+     },
+     "rungs": {
+      "description": "Comma-separated live model IDs; default uses the live catalog",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "type": "object"
+   },
+   "name": "escalate"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Search saved prompts, answers, and reasoning",
+   "inputSchema": {
+    "properties": {
+     "agent": {
+      "description": "Set all agent-friendly defaults (--json --compact --no-input --no-color --yes) (default: false)",
+      "type": "boolean"
+     },
+     "args": {
+      "description": "Additional positional arguments or raw CLI flags to append to the command.",
+      "type": "string"
+     },
+     "compact": {
+      "description": "Return only key fields (id, name, status, timestamps) for minimal token usage (default: false)",
+      "type": "boolean"
+     },
+     "config": {
+      "description": "Config file path",
+      "type": "string"
+     },
+     "csv": {
+      "description": "Output as CSV (table and array responses) (default: false)",
+      "type": "boolean"
+     },
+     "db": {
+      "description": "SQLite database file path",
+      "type": "string"
+     },
+     "dry-run": {
+      "description": "Show request without sending (default: false)",
+      "type": "boolean"
+     },
+     "home": {
+      "description": "Root directory for config, data, state, and cache files",
+      "type": "string"
+     },
+     "human-friendly": {
+      "description": "Enable colored output and rich formatting (default: false)",
+      "type": "boolean"
+     },
+     "json": {
+      "description": "Output as JSON (default: false)",
+      "type": "boolean"
+     },
+     "limit": {
+      "description": "Maximum results (default: 20)",
+      "type": "number"
+     },
+     "no-cache": {
+      "description": "Bypass response cache (default: false)",
+      "type": "boolean"
+     },
+     "no-color": {
+      "description": "Disable colored output (default: false)",
+      "type": "boolean"
+     },
+     "no-input": {
+      "description": "Disable all interactive prompts (for CI/agents) (default: false)",
+      "type": "boolean"
+     },
+     "plain": {
+      "description": "Output as plain tab-separated text (default: false)",
+      "type": "boolean"
+     },
+     "profile": {
+      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "type": "string"
+     },
+     "quiet": {
+      "description": "Bare output, one value per line (default: false)",
+      "type": "boolean"
+     },
+     "rate-limit": {
+      "description": "Max requests per second (0 to disable) (default: 0)",
+      "type": "number"
+     },
+     "select": {
+      "description": "Comma-separated fields to include in output (e.g. --select id,name,status)",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "Request timeout (default: 1m0s)",
+      "type": "string"
+     },
+     "yes": {
+      "description": "Skip confirmation prompts (for agents and scripts) (default: false)",
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "grep"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Run the same question across selected Mixlayer model rungs to compare answers, latency, reasoning, and cost.",
+   "inputSchema": {
+    "properties": {
+     "dry_run": {
+      "description": "Preview the request without sending model data or spending credits",
+      "type": "boolean"
+     },
+     "question": {
+      "description": "The question or task to send to the selected model",
+      "type": "string"
+     },
+     "reasoning": {
+      "description": "Request reasoning content when supported",
+      "type": "boolean"
+     },
+     "rungs": {
+      "description": "Comma-separated live model IDs; default uses the live catalog",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "type": "object"
+   },
+   "name": "ladder"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Browse the model catalog",
+   "inputSchema": {
+    "properties": {
+     "agent": {
+      "description": "Set all agent-friendly defaults (--json --compact --no-input --no-color --yes) (default: false)",
+      "type": "boolean"
+     },
+     "compact": {
+      "description": "Return only key fields (id, name, status, timestamps) for minimal token usage (default: false)",
+      "type": "boolean"
+     },
+     "config": {
+      "description": "Config file path",
+      "type": "string"
+     },
+     "csv": {
+      "description": "Output as CSV (table and array responses) (default: false)",
+      "type": "boolean"
+     },
+     "dry-run": {
+      "description": "Show request without sending (default: false)",
+      "type": "boolean"
+     },
+     "home": {
+      "description": "Root directory for config, data, state, and cache files",
+      "type": "string"
+     },
+     "human-friendly": {
+      "description": "Enable colored output and rich formatting (default: false)",
+      "type": "boolean"
+     },
+     "json": {
+      "description": "Output as JSON (default: false)",
+      "type": "boolean"
+     },
+     "no-cache": {
+      "description": "Bypass response cache (default: false)",
+      "type": "boolean"
+     },
+     "no-color": {
+      "description": "Disable colored output (default: false)",
+      "type": "boolean"
+     },
+     "no-input": {
+      "description": "Disable all interactive prompts (for CI/agents) (default: false)",
+      "type": "boolean"
+     },
+     "plain": {
+      "description": "Output as plain tab-separated text (default: false)",
+      "type": "boolean"
+     },
+     "profile": {
+      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "type": "string"
+     },
+     "quiet": {
+      "description": "Bare output, one value per line (default: false)",
+      "type": "boolean"
+     },
+     "rate-limit": {
+      "description": "Max requests per second (0 to disable) (default: 0)",
+      "type": "number"
+     },
+     "select": {
+      "description": "Comma-separated fields to include in output (e.g. --select id,name,status)",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "Request timeout (default: 1m0s)",
+      "type": "string"
+     },
+     "yes": {
+      "description": "Skip confirmation prompts (for agents and scripts) (default: false)",
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "models"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Retrieve a model by ID. Required: id.",
+   "inputSchema": {
+    "properties": {
+     "id": {
+      "description": "Model ID from models_list, e.g. qwen/qwen3.5-9b",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "type": "object"
+   },
+   "name": "models_get"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "List currently available Mixlayer models and live prices when the platform provides them; use this before selecting a model.",
+   "inputSchema": {
+    "properties": {
+     "dry_run": {
+      "description": "Preview the request without sending model data or spending credits",
+      "type": "boolean"
+     },
+     "live_prices": {
+      "description": "Fetch live organization prices when available; defaults to true",
+      "type": "boolean"
+     },
+     "select": {
+      "description": "Comma-separated output fields",
+      "type": "string"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "models_list"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Query the model catalog cache with a small DSL",
+   "inputSchema": {
+    "properties": {
+     "agent": {
+      "description": "Set all agent-friendly defaults (--json --compact --no-input --no-color --yes) (default: false)",
+      "type": "boolean"
+     },
+     "args": {
+      "description": "Additional positional arguments or raw CLI flags to append to the command.",
+      "type": "string"
+     },
+     "compact": {
+      "description": "Return only key fields (id, name, status, timestamps) for minimal token usage (default: false)",
+      "type": "boolean"
+     },
+     "config": {
+      "description": "Config file path",
+      "type": "string"
+     },
+     "csv": {
+      "description": "Output as CSV (table and array responses) (default: false)",
+      "type": "boolean"
+     },
+     "db": {
+      "description": "SQLite database file path",
+      "type": "string"
+     },
+     "dry-run": {
+      "description": "Show request without sending (default: false)",
+      "type": "boolean"
+     },
+     "home": {
+      "description": "Root directory for config, data, state, and cache files",
+      "type": "string"
+     },
+     "human-friendly": {
+      "description": "Enable colored output and rich formatting (default: false)",
+      "type": "boolean"
+     },
+     "json": {
+      "description": "Output as JSON (default: false)",
+      "type": "boolean"
+     },
+     "no-cache": {
+      "description": "Bypass response cache (default: false)",
+      "type": "boolean"
+     },
+     "no-color": {
+      "description": "Disable colored output (default: false)",
+      "type": "boolean"
+     },
+     "no-input": {
+      "description": "Disable all interactive prompts (for CI/agents) (default: false)",
+      "type": "boolean"
+     },
+     "plain": {
+      "description": "Output as plain tab-separated text (default: false)",
+      "type": "boolean"
+     },
+     "profile": {
+      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "type": "string"
+     },
+     "quiet": {
+      "description": "Bare output, one value per line (default: false)",
+      "type": "boolean"
+     },
+     "rate-limit": {
+      "description": "Max requests per second (0 to disable) (default: 0)",
+      "type": "number"
+     },
+     "refresh": {
+      "description": "Refresh the cache from Mixlayer /models before querying (default: false)",
+      "type": "boolean"
+     },
+     "select": {
+      "description": "Comma-separated fields to include in output (e.g. --select id,name,status)",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "Request timeout (default: 1m0s)",
+      "type": "string"
+     },
+     "yes": {
+      "description": "Skip confirmation prompts (for agents and scripts) (default: false)",
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "models_query"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Roll up Mixlayer ledger cost against a frontier baseline",
+   "inputSchema": {
+    "properties": {
+     "agent": {
+      "description": "Set all agent-friendly defaults (--json --compact --no-input --no-color --yes) (default: false)",
+      "type": "boolean"
+     },
+     "compact": {
+      "description": "Return only key fields (id, name, status, timestamps) for minimal token usage (default: false)",
+      "type": "boolean"
+     },
+     "config": {
+      "description": "Config file path",
+      "type": "string"
+     },
+     "csv": {
+      "description": "Output as CSV (table and array responses) (default: false)",
+      "type": "boolean"
+     },
+     "db": {
+      "description": "SQLite database file path",
+      "type": "string"
+     },
+     "dry-run": {
+      "description": "Show request without sending (default: false)",
+      "type": "boolean"
+     },
+     "home": {
+      "description": "Root directory for config, data, state, and cache files",
+      "type": "string"
+     },
+     "human-friendly": {
+      "description": "Enable colored output and rich formatting (default: false)",
+      "type": "boolean"
+     },
+     "json": {
+      "description": "Output as JSON (default: false)",
+      "type": "boolean"
+     },
+     "no-cache": {
+      "description": "Bypass response cache (default: false)",
+      "type": "boolean"
+     },
+     "no-color": {
+      "description": "Disable colored output (default: false)",
+      "type": "boolean"
+     },
+     "no-input": {
+      "description": "Disable all interactive prompts (for CI/agents) (default: false)",
+      "type": "boolean"
+     },
+     "plain": {
+      "description": "Output as plain tab-separated text (default: false)",
+      "type": "boolean"
+     },
+     "profile": {
+      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "type": "string"
+     },
+     "quiet": {
+      "description": "Bare output, one value per line (default: false)",
+      "type": "boolean"
+     },
+     "rate-limit": {
+      "description": "Max requests per second (0 to disable) (default: 0)",
+      "type": "number"
+     },
+     "select": {
+      "description": "Comma-separated fields to include in output (e.g. --select id,name,status)",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "Request timeout (default: 1m0s)",
+      "type": "string"
+     },
+     "vs": {
+      "description": "Baseline: gpt-frontier or claude-frontier (default: gpt-frontier)",
+      "type": "string"
+     },
+     "yes": {
+      "description": "Skip confirmation prompts (for agents and scripts) (default: false)",
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "savings"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Privacy firewall for masking data before frontier-model calls",
+   "inputSchema": {
+    "properties": {
+     "agent": {
+      "description": "Set all agent-friendly defaults (--json --compact --no-input --no-color --yes) (default: false)",
+      "type": "boolean"
+     },
+     "compact": {
+      "description": "Return only key fields (id, name, status, timestamps) for minimal token usage (default: false)",
+      "type": "boolean"
+     },
+     "config": {
+      "description": "Config file path",
+      "type": "string"
+     },
+     "csv": {
+      "description": "Output as CSV (table and array responses) (default: false)",
+      "type": "boolean"
+     },
+     "dry-run": {
+      "description": "Show request without sending (default: false)",
+      "type": "boolean"
+     },
+     "home": {
+      "description": "Root directory for config, data, state, and cache files",
+      "type": "string"
+     },
+     "human-friendly": {
+      "description": "Enable colored output and rich formatting (default: false)",
+      "type": "boolean"
+     },
+     "json": {
+      "description": "Output as JSON (default: false)",
+      "type": "boolean"
+     },
+     "no-cache": {
+      "description": "Bypass response cache (default: false)",
+      "type": "boolean"
+     },
+     "no-color": {
+      "description": "Disable colored output (default: false)",
+      "type": "boolean"
+     },
+     "no-input": {
+      "description": "Disable all interactive prompts (for CI/agents) (default: false)",
+      "type": "boolean"
+     },
+     "plain": {
+      "description": "Output as plain tab-separated text (default: false)",
+      "type": "boolean"
+     },
+     "profile": {
+      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "type": "string"
+     },
+     "quiet": {
+      "description": "Bare output, one value per line (default: false)",
+      "type": "boolean"
+     },
+     "rate-limit": {
+      "description": "Max requests per second (0 to disable) (default: 0)",
+      "type": "number"
+     },
+     "select": {
+      "description": "Comma-separated fields to include in output (e.g. --select id,name,status)",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "Request timeout (default: 1m0s)",
+      "type": "string"
+     },
+     "yes": {
+      "description": "Skip confirmation prompts (for agents and scripts) (default: false)",
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "shield"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Mask question and file data before an explicit upstream model call, run the outbound tripwire, and return a local restoration receipt.",
+   "inputSchema": {
+    "properties": {
+     "data": {
+      "description": "Optional local data file path",
+      "type": "string"
+     },
+     "detector": {
+      "description": "regex, local:<model>, or mixlayer:<model>; use a model for external upstreams",
+      "type": "string"
+     },
+     "dry_run": {
+      "description": "Preview the request without sending model data or spending credits",
+      "type": "boolean"
+     },
+     "model": {
+      "description": "Model ID selected from the live models_list result",
+      "type": "string"
+     },
+     "question": {
+      "description": "The question or task to send to the selected model",
+      "type": "string"
+     },
+     "upstream": {
+      "description": "Explicit upstream: mixlayer, openai, anthropic, openrouter, or custom",
+      "type": "string"
+     },
+     "upstream_base_url": {
+      "description": "Base URL for a custom upstream",
+      "type": "string"
+     },
+     "upstream_key_env": {
+      "description": "Name of the environment variable holding a custom upstream key; never pass its value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question",
+     "upstream"
+    ],
+    "type": "object"
+   },
+   "name": "shield_ask"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Show privacy receipts",
+   "inputSchema": {
+    "properties": {
+     "agent": {
+      "description": "Set all agent-friendly defaults (--json --compact --no-input --no-color --yes) (default: false)",
+      "type": "boolean"
+     },
+     "args": {
+      "description": "Additional positional arguments or raw CLI flags to append to the command.",
+      "type": "string"
+     },
+     "compact": {
+      "description": "Return only key fields (id, name, status, timestamps) for minimal token usage (default: false)",
+      "type": "boolean"
+     },
+     "config": {
+      "description": "Config file path",
+      "type": "string"
+     },
+     "csv": {
+      "description": "Output as CSV (table and array responses) (default: false)",
+      "type": "boolean"
+     },
+     "db": {
+      "description": "SQLite database file path",
+      "type": "string"
+     },
+     "dry-run": {
+      "description": "Show request without sending (default: false)",
+      "type": "boolean"
+     },
+     "home": {
+      "description": "Root directory for config, data, state, and cache files",
+      "type": "string"
+     },
+     "human-friendly": {
+      "description": "Enable colored output and rich formatting (default: false)",
+      "type": "boolean"
+     },
+     "json": {
+      "description": "Output as JSON (default: false)",
+      "type": "boolean"
+     },
+     "limit": {
+      "description": "Maximum receipts (default: 50)",
+      "type": "number"
+     },
+     "no-cache": {
+      "description": "Bypass response cache (default: false)",
+      "type": "boolean"
+     },
+     "no-color": {
+      "description": "Disable colored output (default: false)",
+      "type": "boolean"
+     },
+     "no-input": {
+      "description": "Disable all interactive prompts (for CI/agents) (default: false)",
+      "type": "boolean"
+     },
+     "plain": {
+      "description": "Output as plain tab-separated text (default: false)",
+      "type": "boolean"
+     },
+     "profile": {
+      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "type": "string"
+     },
+     "quiet": {
+      "description": "Bare output, one value per line (default: false)",
+      "type": "boolean"
+     },
+     "rate-limit": {
+      "description": "Max requests per second (0 to disable) (default: 0)",
+      "type": "number"
+     },
+     "select": {
+      "description": "Comma-separated fields to include in output (e.g. --select id,name,status)",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "Request timeout (default: 1m0s)",
+      "type": "string"
+     },
+     "yes": {
+      "description": "Skip confirmation prompts (for agents and scripts) (default: false)",
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "shield_audit"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Measure detector recall, precision, and masking leaks on JSONL samples",
+   "inputSchema": {
+    "properties": {
+     "agent": {
+      "description": "Set all agent-friendly defaults (--json --compact --no-input --no-color --yes) (default: false)",
+      "type": "boolean"
+     },
+     "compact": {
+      "description": "Return only key fields (id, name, status, timestamps) for minimal token usage (default: false)",
+      "type": "boolean"
+     },
+     "config": {
+      "description": "Config file path",
+      "type": "string"
+     },
+     "csv": {
+      "description": "Output as CSV (table and array responses) (default: false)",
+      "type": "boolean"
+     },
+     "detector": {
+      "description": "Detector to evaluate (repeatable; default regex)",
+      "type": "string"
+     },
+     "detector-base-url": {
+      "description": "OpenAI-compatible local detector base URL (default: http://localhost:11434/v1)",
+      "type": "string"
+     },
+     "detector-fallback": {
+      "description": "Use regex if model detector fails (regex)",
+      "type": "string"
+     },
+     "detector-key-env": {
+      "description": "Environment variable name for detector key",
+      "type": "string"
+     },
+     "detector-timeout": {
+      "description": "Maximum time for each detector request (default: 1m0s)",
+      "type": "string"
+     },
+     "dry-run": {
+      "description": "Show request without sending (default: false)",
+      "type": "boolean"
+     },
+     "home": {
+      "description": "Root directory for config, data, state, and cache files",
+      "type": "string"
+     },
+     "human-friendly": {
+      "description": "Enable colored output and rich formatting (default: false)",
+      "type": "boolean"
+     },
+     "json": {
+      "description": "Output as JSON (default: false)",
+      "type": "boolean"
+     },
+     "min-recall": {
+      "description": "Exit 2 if any detector's overall recall is below this value (default: 0.9)",
+      "type": "number"
+     },
+     "no-cache": {
+      "description": "Bypass response cache (default: false)",
+      "type": "boolean"
+     },
+     "no-color": {
+      "description": "Disable colored output (default: false)",
+      "type": "boolean"
+     },
+     "no-input": {
+      "description": "Disable all interactive prompts (for CI/agents) (default: false)",
+      "type": "boolean"
+     },
+     "plain": {
+      "description": "Output as plain tab-separated text (default: false)",
+      "type": "boolean"
+     },
+     "profile": {
+      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "type": "string"
+     },
+     "quiet": {
+      "description": "Bare output, one value per line (default: false)",
+      "type": "boolean"
+     },
+     "rate-limit": {
+      "description": "Max requests per second (0 to disable) (default: 0)",
+      "type": "number"
+     },
+     "sample": {
+      "description": "JSONL file of synthetic or labeled samples",
+      "type": "string"
+     },
+     "select": {
+      "description": "Comma-separated fields to include in output (e.g. --select id,name,status)",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "Request timeout (default: 1m0s)",
+      "type": "string"
+     },
+     "yes": {
+      "description": "Skip confirmation prompts (for agents and scripts) (default: false)",
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "shield_eval"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Mask personal data in a local file and populate the local reversible vault; dry run reports the planned operation without touching the vault.",
+   "inputSchema": {
+    "properties": {
+     "detector": {
+      "description": "regex, local:<model>, or mixlayer:<model>",
+      "type": "string"
+     },
+     "dry_run": {
+      "description": "Preview the request without sending model data or spending credits",
+      "type": "boolean"
+     },
+     "file": {
+      "description": "Path to the local file to redact",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "type": "object"
+   },
+   "name": "shield_redact"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Detect PII locally without an upstream call",
+   "inputSchema": {
+    "properties": {
+     "agent": {
+      "description": "Set all agent-friendly defaults (--json --compact --no-input --no-color --yes) (default: false)",
+      "type": "boolean"
+     },
+     "args": {
+      "description": "Additional positional arguments or raw CLI flags to append to the command.",
+      "type": "string"
+     },
+     "compact": {
+      "description": "Return only key fields (id, name, status, timestamps) for minimal token usage (default: false)",
+      "type": "boolean"
+     },
+     "config": {
+      "description": "Config file path",
+      "type": "string"
+     },
+     "csv": {
+      "description": "Output as CSV (table and array responses) (default: false)",
+      "type": "boolean"
+     },
+     "db": {
+      "description": "SQLite database file path for local dictionary",
+      "type": "string"
+     },
+     "detector": {
+      "description": "Detector: regex, local:<model>, or mixlayer:<model> (default: regex)",
+      "type": "string"
+     },
+     "detector-base-url": {
+      "description": "OpenAI-compatible local detector base URL (default: http://localhost:11434/v1)",
+      "type": "string"
+     },
+     "detector-fallback": {
+      "description": "Use regex if a model detector fails (regex)",
+      "type": "string"
+     },
+     "detector-key-env": {
+      "description": "Environment variable name for detector key",
+      "type": "string"
+     },
+     "detector-timeout": {
+      "description": "Maximum time for each detector request (default: 1m0s)",
+      "type": "string"
+     },
+     "dry-run": {
+      "description": "Show request without sending (default: false)",
+      "type": "boolean"
+     },
+     "home": {
+      "description": "Root directory for config, data, state, and cache files",
+      "type": "string"
+     },
+     "human-friendly": {
+      "description": "Enable colored output and rich formatting (default: false)",
+      "type": "boolean"
+     },
+     "json": {
+      "description": "Output as JSON (default: false)",
+      "type": "boolean"
+     },
+     "max-risk": {
+      "description": "Exit non-zero when the per-entity max risk exceeds this value (not volume-weighted) (default: 0)",
+      "type": "number"
+     },
+     "no-cache": {
+      "description": "Bypass response cache (default: false)",
+      "type": "boolean"
+     },
+     "no-color": {
+      "description": "Disable colored output (default: false)",
+      "type": "boolean"
+     },
+     "no-input": {
+      "description": "Disable all interactive prompts (for CI/agents) (default: false)",
+      "type": "boolean"
+     },
+     "plain": {
+      "description": "Output as plain tab-separated text (default: false)",
+      "type": "boolean"
+     },
+     "profile": {
+      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "type": "string"
+     },
+     "quiet": {
+      "description": "Bare output, one value per line (default: false)",
+      "type": "boolean"
+     },
+     "rate-limit": {
+      "description": "Max requests per second (0 to disable) (default: 0)",
+      "type": "number"
+     },
+     "select": {
+      "description": "Comma-separated fields to include in output (e.g. --select id,name,status)",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "Request timeout (default: 1m0s)",
+      "type": "string"
+     },
+     "yes": {
+      "description": "Skip confirmation prompts (for agents and scripts) (default: false)",
+      "type": "boolean"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "name": "shield_scan"
+  },
+  {
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   },
+   "description": "Run read-only SQL over the local run ledger: what was asked, which model answered, tokens, latency and cost. The private vault is not readable here.",
+   "inputSchema": {
+    "properties": {
+     "query": {
+      "description": "A single SELECT or WITH query. Tables: runs(id, group_id, command, prompt, answer, reasoning, model, seed, prompt_tokens, completion_tokens, total_tokens, cost_usd, latency_ms, created_at), audit (shield receipts), ladders, models_cache. Example: SELECT model, count(*), sum(cost_usd) FROM runs GROUP BY model.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "sql"
+  }
+ ]
+}

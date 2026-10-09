@@ -4,23 +4,23 @@ Thanks for helping improve the Mixlayer CLI.
 
 ## Setup
 
-You need Go (the version in `go.mod`; `GOTOOLCHAIN=auto` fetches it for you).
+You need Rust (the toolchain in `rust-toolchain.toml`; rustup installs it for you) and, for the end-to-end suite, Go 1.26.
 
 ```sh
 git clone https://github.com/mixlayer/cli
 cd cli
-make build          # ./bin/mixlayer
-make test           # unit tests, no network
-make test-e2e       # runs the built binary against a local fake API
+cargo build --release      # target/release/mixlayer and mixlayer-mcp
+cargo test                 # unit and parity tests, no network
+cd parity/e2e && go test .   # the release binary against a local fake API
 ```
 
-`make test-live` calls the real API with `MIXLAYER_API_KEY` and uses free models only. Set `MIXLAYER_LIVE_PAID=1` to allow one short paid call.
+`go test -tags live .` in `parity/e2e` calls the real API with `MIXLAYER_API_KEY` and uses free models only. Set `MIXLAYER_LIVE_PAID=1` to allow one short paid call.
 
 ## Pull requests
 
-- Keep each PR to one change and include a test. Tests must not need a network connection or a real key; use `httptest`.
-- Run `gofmt`, `go vet ./...` and `make test` before opening the PR.
-- If you add or rename a command or flag, run `go generate ./skills/mixlayer` so the agent skill's command reference stays current (CI checks this).
+- Keep each PR to one change and include a test. Tests must not need a network connection or a real key; use a local fake server.
+- Run `cargo fmt`, `cargo clippy --all-targets -- -D warnings` and `cargo test` before opening the PR.
+- If you add or rename a command or flag, edit `src/spec.rs` and regenerate the agent skill's command reference with `cargo run -- agent skill-ref > skills/mixlayer/references/commands.md` (CI checks this).
 - Never put an API key in a command argument, a test fixture or a log line.
 
 ## Reporting bugs

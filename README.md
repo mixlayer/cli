@@ -12,7 +12,7 @@
 ## Quick start
 
 ```sh
-go install github.com/mixlayer/cli/cmd/mixlayer@latest
+curl -fsSL https://github.com/mixlayer/cli/releases/latest/download/install.sh | sh
 export MIXLAYER_API_KEY="your-key"      # from https://console.mixlayer.com/app/api-keys
 
 mixlayer models list --live-prices      # what you can call, and what it costs
@@ -62,14 +62,21 @@ Then ask your agent something like "use mixlayer to find which customers in cust
 
 ## Install
 
-With Go 1.26 or newer:
+On macOS or Linux:
 
 ```sh
-go install github.com/mixlayer/cli/cmd/mixlayer@latest
-go install github.com/mixlayer/cli/cmd/mixlayer-mcp@latest   # optional MCP server
+curl -fsSL https://github.com/mixlayer/cli/releases/latest/download/install.sh | sh
 ```
 
-Or download a binary for macOS, Linux or Windows from [Releases](https://github.com/mixlayer/cli/releases), unpack it and put `mixlayer` on your `PATH`.
+The script downloads the right build for your machine, checks it against the release checksums and puts `mixlayer` and `mixlayer-mcp` in `~/.local/bin` (set `MIXLAYER_INSTALL_DIR` to change that).
+
+On Windows, or to install by hand, download the archive for your platform from [Releases](https://github.com/mixlayer/cli/releases), unpack it and put both binaries on your `PATH`. Builds cover macOS (Apple silicon and Intel), Linux (x86-64 and ARM64, statically linked) and Windows (x86-64 and ARM64).
+
+With a Rust toolchain you can also build from source:
+
+```sh
+cargo install --locked --git https://github.com/mixlayer/cli
+```
 
 Check the install:
 
@@ -259,7 +266,7 @@ mixlayer which "compare models"   # find the command for a task
 mixlayer agent skill print        # read the embedded skill
 ```
 
-To build the Claude Desktop bundle, run `make mcpb`.
+To build the Claude Desktop bundle, run `scripts/mcpb.sh`.
 
 ## Configuration
 
@@ -301,10 +308,16 @@ mixlayer models list --profile ci
 
 ```sh
 git clone https://github.com/mixlayer/cli && cd cli
-make build       # ./bin/mixlayer
-make test        # unit tests, offline
-make test-e2e    # builds the binary and runs it against a local fake API
-make test-live   # real API with MIXLAYER_API_KEY, free models only
+cargo build --release   # target/release/mixlayer and mixlayer-mcp
+cargo test              # unit, parity and integration tests, offline
+```
+
+The end-to-end suite in `parity/e2e` runs the release binary as a black box against a local fake API, and against the real API with `-tags live` (free models only). It needs Go:
+
+```sh
+cd parity/e2e
+go test .                                       # local fake API, no key
+MIXLAYER_API_KEY=... go test -tags live .       # real API, free models only
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as described in [SECURITY.md](SECURITY.md).

@@ -4,6 +4,8 @@
 
 First public release of the Mixlayer CLI.
 
+- Written in Rust: `mixlayer` and `mixlayer-mcp` are small self-contained binaries for macOS, Linux (statically linked) and Windows, on x86-64 and ARM64, with a one-line installer that checks release checksums.
+
 - `chat`, `ask`, `models` for Mixlayer's OpenAI-compatible API, with a local SQLite ledger of prompts, answers, tokens and cost.
 - `ladder`, `escalate`, `council`, `compare` and `savings` to compare models and price answers against a frontier baseline using live prices.
 - `shield` and `vault` to mask personal data locally before any model call (Mixlayer, OpenAI, Anthropic, OpenRouter or a custom endpoint) and restore it in the answer.

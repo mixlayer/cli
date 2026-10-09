@@ -1,0 +1,119 @@
+{
+  "min_recall": 0,
+  "results": [
+    {
+      "by_kind": {
+        "ACCOUNT": {
+          "counts": {
+            "correct": 2,
+            "detected": 2,
+            "found": 2,
+            "gold": 2,
+            "leaked": 0
+          },
+          "leak_rate": 0,
+          "precision": 1,
+          "recall": 1
+        },
+        "ADDRESS": {
+          "counts": {
+            "correct": 0,
+            "detected": 0,
+            "found": 0,
+            "gold": 2,
+            "leaked": 2
+          },
+          "leak_rate": 1,
+          "precision": 1,
+          "recall": 0
+        },
+        "EMAIL": {
+          "counts": {
+            "correct": 3,
+            "detected": 3,
+            "found": 3,
+            "gold": 5,
+            "leaked": 2
+          },
+          "leak_rate": 0.4,
+          "precision": 1,
+          "recall": 0.6
+        },
+        "ID_NUMBER": {
+          "counts": {
+            "correct": 2,
+            "detected": 2,
+            "found": 2,
+            "gold": 2,
+            "leaked": 0
+          },
+          "leak_rate": 0,
+          "precision": 1,
+          "recall": 1
+        },
+        "LOCATION": {
+          "counts": {
+            "correct": 0,
+            "detected": 0,
+            "found": 0,
+            "gold": 1,
+            "leaked": 1
+          },
+          "leak_rate": 1,
+          "precision": 1,
+          "recall": 0
+        },
+        "MEDICAL": {
+          "counts": {
+            "correct": 0,
+            "detected": 0,
+            "found": 0,
+            "gold": 1,
+            "leaked": 1
+          },
+          "leak_rate": 1,
+          "precision": 1,
+          "recall": 0
+        },
+        "PERSON": {
+          "counts": {
+            "correct": 12,
+            "detected": 12,
+            "found": 13,
+            "gold": 15,
+            "leaked": 2
+          },
+          "leak_rate": 0.13333333333333333,
+          "precision": 1,
+          "recall": 0.8666666666666667
+        },
+        "PHONE": {
+          "counts": {
+            "correct": 6,
+            "detected": 6,
+            "found": 6,
+            "gold": 6,
+            "leaked": 0
+          },
+          "leak_rate": 0,
+          "precision": 1,
+          "recall": 1
+        }
+      },
+      "detector": "regex",
+      "errors": 0,
+      "overall": {
+        "counts": {
+          "correct": 25,
+          "detected": 25,
+          "found": 26,
+          "gold": 34,
+          "leaked": 8
+        },
+        "leak_rate": 0.23529411764705882,
+        "precision": 1,
+        "recall": 0.7647058823529411
+      }
+    }
+  ]
+}
