@@ -5,11 +5,9 @@
 [![CI](https://github.com/mixlayer/cli/actions/workflows/ci.yml/badge.svg)](https://github.com/mixlayer/cli/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-`mixlayer` puts [Mixlayer](https://mixlayer.com)'s models in your terminal and in your coding agent. Ask a question, compare models on your own prompts, see what every answer cost, and send customer data to a frontier model with the names, emails and companies masked first.
+`mixlayer` brings [Mixlayer](https://mixlayer.com)'s models to your terminal and your coding agent. Ask anything, compare models on your own prompts, and see what every answer costs.
 
-<p align="center"><img src="docs/images/demo.gif" alt="mixlayer shield ask ranks churn risk in a customer list while names, emails, phones and companies stay on the machine" width="100%"></p>
-
-That demo is a real run on a synthetic customer list ([docs/demo/customers.csv](docs/demo/customers.csv)). The model saw `CUSTOMER_e993684a` and `COMPANY_293a7f63`, never the real values, and the CLI put the names back into the answer locally.
+**Your data stays yours.** Mixlayer runs with [zero data retention](https://docs.mixlayer.com/zero-data-retention) by default: requests are processed in memory, discarded after inference, and never used for training. Using other providers too? `shield` masks names, emails, companies and other personal data before a prompt leaves your machine, then restores them in the answer.
 
 ## Quick start
 
@@ -25,7 +23,7 @@ It works like any other model CLI from there. The rest of this page covers what 
 
 ## Beyond the API call
 
-**Keep private data on your machine.** `shield ask` replaces names, emails, phones, card numbers and IDs with placeholders before anything is sent, then restores them in the answer locally. For a CSV you can name the private columns outright with `--mask-columns`. A tripwire rescans every outgoing request and refuses to send if anything personal is left. `shield scan` fails a CI job when a file contains personal data, and `shield audit` keeps a receipt for every masked send. Shield works with Mixlayer, OpenAI, Anthropic, OpenRouter or your own endpoint.
+**Shield personal data from any model.** `shield ask` swaps names, emails, phones, card numbers and IDs for placeholders, sends the masked prompt, and restores the real values on your machine. Point `--mask-columns` at the private fields in a CSV. A tripwire rescans every request and blocks it if anything personal slipped through, `shield scan` gates CI, and `shield audit` keeps a receipt for every send. It works with Mixlayer, OpenAI, Anthropic, OpenRouter or your own endpoint.
 
 **Pay for the model the question needs.** `escalate` starts on the cheapest model and moves up only when the answer is unsure. `compare` runs a cheap and a frontier model on your prompt and prices the difference, and `savings` totals what your real usage would have cost at frontier prices.
 
@@ -34,6 +32,17 @@ It works like any other model CLI from there. The rest of this page covers what 
 **Remember every run.** Each call lands in a local SQLite ledger. `grep` searches old answers, `replay` re-runs a prompt with the same model and seed to check drift, and `sql` queries your spend.
 
 ### Built for agents
+
+Give your agent the Mixlayer skill so it knows how to use the CLI:
+
+| Agent | Install the skill |
+| --- | --- |
+| Hermes | `hermes skills install mixlayer/cli/skills/mixlayer` |
+| Claude Code | `npx skills add mixlayer/cli --skill mixlayer -g -a claude-code -y` |
+| Codex, Cursor and others | `npx skills add mixlayer/cli --skill mixlayer -g -y` |
+| Any of the above, plus the MCP server | `mixlayer agent setup --agent all --yes` |
+
+Then ask your agent something like "use mixlayer to find which customers in customers.csv will churn, with names masked".
 
 `mixlayer agent setup` installs an Agent Skill and an MCP server into Claude Code, Codex, Cursor, Hermes or Claude Desktop, without writing your key into their config. Every command takes `--agent` (JSON on stdout, no prompts) and `--dry-run` (show the exact request without sending it), and returns [exit codes](#exit-codes) a script can branch on. `agent-context` lists every command and flag as JSON, and `which "compare models"` finds the right command for a task.
 
@@ -148,6 +157,13 @@ mixlayer savings --vs gpt-frontier
 
 `shield` finds personal data (names, emails, phone numbers, card numbers, IDs), swaps it for placeholders like `EMAIL_12b5f8de`, sends only the masked text, and puts the real values back into the answer on your machine. The mapping lives in a local vault and never leaves it.
 
+Mixlayer doesn't keep your requests ([zero data retention](https://docs.mixlayer.com/zero-data-retention)). Shield covers everything else: other providers, other retention policies, or any time you'd rather a model never see a real name.
+
+<p align="center"><img src="docs/images/demo.gif" alt="mixlayer shield ask ranks churn risk in a customer list while names, emails, phones and companies stay on the machine" width="100%"></p>
+
+That demo is a real run on a synthetic customer list ([docs/demo/customers.csv](docs/demo/customers.csv)). The model saw `CUSTOMER_e993684a` and `COMPANY_293a7f63`, never the real values, and the CLI put the names back into the answer locally.
+
+
 See exactly what the model will get, without sending anything:
 
 ```sh
@@ -185,7 +201,7 @@ mixlayer shield eval --sample testdata/shield-eval/synthetic.jsonl --detector re
 | --- | --- | --- |
 | `regex` (default) | Pattern matching on your machine | Emails, phones, cards and IDs. It misses many names and addresses. |
 | `local:<model>` | A local model (e.g. Ollama at `localhost:11434`) finds entities on top of regex | Free text with names, sent to a provider you don't control |
-| `mixlayer:<model>` | A Mixlayer model finds entities | You're fine sending raw text to Mixlayer once for detection |
+| `mixlayer:<model>` | A Mixlayer model finds entities | You're fine sending raw text to Mixlayer once for detection (covered by zero data retention) |
 
 Regex alone is a floor, not a guarantee. Sending to a non-Mixlayer provider with regex only requires `--accept-regex-only`, so that choice is explicit. Run `shield eval` on samples that look like your data to measure recall before you rely on it.
 

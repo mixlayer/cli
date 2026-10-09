@@ -60,6 +60,7 @@ jobs:
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - name: Skill command reference is current
         run: |
+          go mod download
           go generate ./skills/mixlayer
           git diff --exit-code skills/mixlayer/references/commands.md
       - name: go.mod is tidy

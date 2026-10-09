@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -44,9 +45,9 @@ func TestDoctorMarksInvalidKeyFromModelsProbe(t *testing.T) {
 }
 
 func TestDoctorProbeUsesOneAttemptWithinTimeout(t *testing.T) {
-	calls := 0
+	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
+		calls.Add(1)
 		select {
 		case <-r.Context().Done():
 		case <-time.After(200 * time.Millisecond):
@@ -64,7 +65,7 @@ func TestDoctorProbeUsesOneAttemptWithinTimeout(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if calls != 1 || time.Since(start) > time.Second {
-		t.Fatalf("calls=%d elapsed=%s output=%s", calls, time.Since(start), out.String())
+	if calls.Load() != 1 || time.Since(start) > time.Second {
+		t.Fatalf("calls=%d elapsed=%s output=%s", calls.Load(), time.Since(start), out.String())
 	}
 }
