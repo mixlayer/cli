@@ -1,0 +1,16 @@
+[
+  {
+    "id": "fake/model",
+    "context_window": 0,
+    "supports_tools": false,
+    "supports_reasoning": false,
+    "input_price_per_million": 0,
+    "output_price_per_million": 0,
+    "raw_json": {
+      "id": "fake/model",
+      "object": "model"
+    },
+    "updated_at": "<time>"
+  }
+]
+exit=0

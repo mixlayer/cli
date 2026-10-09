@@ -3,7 +3,7 @@ use serde_json::json;
 
 fn expected(case: usize) -> String {
     std::fs::read_to_string(format!(
-        "{}/parity/go-output/expected/{case}.out",
+        "{}/parity/fixtures/go-output/expected/{case}.out",
         env!("CARGO_MANIFEST_DIR")
     ))
     .unwrap()

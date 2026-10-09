@@ -1,0 +1,14 @@
+{
+  "meta": {
+    "source": "live"
+  },
+  "results": {
+    "data": [
+      {
+        "id": "fake/model"
+      }
+    ],
+    "object": "list"
+  }
+}
+exit=0

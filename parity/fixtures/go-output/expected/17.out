@@ -1,0 +1,26 @@
+{
+  "meta": {
+    "source": "live"
+  },
+  "results": {
+    "id": "<id>",
+    "object": "chat.completion",
+    "model": "fake/model",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "[]"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 1,
+      "completion_tokens": 1,
+      "total_tokens": 2
+    }
+  }
+}
+exit=0

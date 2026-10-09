@@ -25,7 +25,7 @@ fn cli(home: &Path, args: &[&str]) -> Output {
 
 fn fixture(case: usize) -> String {
     std::fs::read_to_string(format!(
-        "{}/parity/go-output/expected/{case}.out",
+        "{}/parity/fixtures/go-output/expected/{case}.out",
         env!("CARGO_MANIFEST_DIR")
     ))
     .unwrap()

@@ -586,7 +586,7 @@ mod tests {
         rows[0]["updated_at"] = "<time>".into();
         assert_eq!(
             crate::output::pretty(&Value::Array(rows))?.replace("\\u003ctime\\u003e", "<time>"),
-            include_str!("../../../parity/go-output/expected/12.out").replace("exit=0\n", "")
+            include_str!("../../../parity/fixtures/go-output/expected/12.out").replace("exit=0\n", "")
         );
         let separate = Store::open(dir.path().join("separate.db"))?;
         assert!(separate.all_models()?.is_empty());
@@ -647,7 +647,7 @@ mod tests {
         let cached = store.cached_live_catalog(&scope, Duration::from_secs(3600))?.unwrap();
         assert_eq!(
             crate::output::pretty(&cached)?,
-            include_str!("../../../parity/go-output/expected/16.out").replace("exit=0\n", "")
+            include_str!("../../../parity/fixtures/go-output/expected/16.out").replace("exit=0\n", "")
         );
         drop(store);
         let mut store = Store::open(&path)?;

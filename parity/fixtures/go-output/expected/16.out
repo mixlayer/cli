@@ -1,0 +1,17 @@
+{
+  "models": [
+    {
+      "model_sku": "fake/model",
+      "price_m_input_tokens_usd": null,
+      "price_m_output_tokens_usd": null,
+      "price_m_input_cache_read_tokens_usd": null,
+      "max_context_len": 0,
+      "tools_supported": false,
+      "input_modalities": null,
+      "status": "",
+      "access": null
+    }
+  ],
+  "source": "organization"
+}
+exit=0
