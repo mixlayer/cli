@@ -7,6 +7,8 @@ fn cli(home: &Path, args: &[&str], input: Option<&str>, key: Option<&str>) -> Ou
     command
         .args(args)
         .env_clear()
+        // Windows networking needs SYSTEMROOT (WSA error 10106 without it).
+        .envs(std::env::vars().filter(|(k, _)| matches!(k.to_ascii_uppercase().as_str(), "SYSTEMROOT" | "WINDIR")))
         .env("HOME", home)
         .env("MIXLAYER_HOME", home.join("mixlayer"))
         .env("MIXLAYER_BASE_URL", "http://127.0.0.1:9/v1")

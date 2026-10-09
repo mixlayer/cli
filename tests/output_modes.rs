@@ -12,6 +12,8 @@ fn cli(home: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_mixlayer"))
         .args(args)
         .env_clear()
+        // Windows networking needs SYSTEMROOT (WSA error 10106 without it).
+        .envs(std::env::vars().filter(|(k, _)| matches!(k.to_ascii_uppercase().as_str(), "SYSTEMROOT" | "WINDIR")))
         .env("HOME", home)
         .env("MIXLAYER_HOME", home)
         .env("MIXLAYER_BASE_URL", format!("{BASE}/v1"))

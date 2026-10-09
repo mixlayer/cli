@@ -14,6 +14,8 @@ fn cli(home: &Path, args: &[&str], input: Option<&str>) -> Output {
     command
         .args(args)
         .env_clear()
+        // Windows networking needs SYSTEMROOT (WSA error 10106 without it).
+        .envs(std::env::vars().filter(|(k, _)| matches!(k.to_ascii_uppercase().as_str(), "SYSTEMROOT" | "WINDIR")))
         .env("HOME", home)
         .env("MIXLAYER_HOME", home.join("mixlayer"))
         .env("MIXLAYER_NO_AGENT_DETECT", "1")
