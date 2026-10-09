@@ -77,18 +77,14 @@ pub fn chat(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         return print(&as_results(json!({"dry_run": true}), g), &Globals::default());
     }
     let mut client = new_client(m)?;
-    let response = client
-        .post("/chat/completions", &Value::Object(body))
+    let raw = client
+        .post_raw("/chat/completions", &Value::Object(body))
         .map_err(|e| classified(e, g, "chat"))?;
+    let response: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
     if !bool_arg(m, "stream") && response["choices"].as_array().is_none_or(Vec::is_empty) {
         return Err(exit::err(Code::Api, "malformed chat response body"));
     }
-    if g.json {
-        print(&as_results(response, g), &Globals::default())
-    } else {
-        println!("{response}");
-        Ok(())
-    }
+    crate::output::print_endpoint(&raw, g, 1)
 }
 
 fn run_id() -> String {

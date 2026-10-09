@@ -136,6 +136,12 @@ fn handle(mut stream: TcpStream, requests: Arc<Mutex<Vec<Request>>>) {
     let _ = stream.write_all(text.as_bytes());
 }
 fn reply(path: &str, body: &Value) -> (u16, Value) {
+    if path == "/v1/models" {
+        return (
+            200,
+            json!({"object":"list", "data":[{"id":"fake/model","object":"model"}]}),
+        );
+    }
     if path == "/v1/organizations" {
         return (200, json!({"data":[{"id":"org"}]}));
     }
@@ -456,6 +462,80 @@ fn local_ledger_search_replay_savings_and_sql() {
     );
     assert_eq!(private.status.code(), Some(2));
 }
+#[test]
+fn model_refresh_and_live_catalog_cache_survive_separate_cli_runs() {
+    let Ok(server) = FakeServer::start() else {
+        eprintln!("loopback bind denied; model cache HTTP test unverified");
+        return;
+    };
+    let home = tempfile::tempdir().unwrap();
+    let db = home.path().join("custom.db");
+    let db = db.to_str().unwrap();
+    let refresh = cli(
+        home.path(),
+        &server.url,
+        &["models", "query", "fake", "--refresh", "--db", db],
+    );
+    assert!(refresh.status.success(), "{}", String::from_utf8_lossy(&refresh.stderr));
+    let cached = cli(home.path(), &server.url, &["models", "query", "fake", "--db", db]);
+    assert_eq!(value(&cached), value(&refresh));
+    assert_eq!(server.seen().iter().filter(|(p, _)| p == "/v1/models").count(), 1);
+    let first = cli(
+        home.path(),
+        &server.url,
+        &["models", "list", "--live-prices", "--json", "--db", db],
+    );
+    assert!(first.status.success());
+    let second = cli(
+        home.path(),
+        &server.url,
+        &["models", "list", "--live-prices", "--json", "--db", db],
+    );
+    assert_eq!(value(&first), value(&second));
+    let ask = cli(home.path(), &server.url, &["ask", "question", "--json", "--db", db]);
+    assert!(ask.status.success(), "{}", String::from_utf8_lossy(&ask.stderr));
+    assert_eq!(value(&ask)["model"], "frontier");
+    assert_eq!(
+        server
+            .seen()
+            .iter()
+            .filter(|(p, _)| p == "/v1/organizations/org/models")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn chat_machine_flags_work_with_valid_messages() {
+    let Ok(server) = FakeServer::start() else {
+        eprintln!("loopback bind denied; chat output HTTP test unverified");
+        return;
+    };
+    let home = tempfile::tempdir().unwrap();
+    let args = [
+        "chat",
+        "--model",
+        "cheap",
+        "--messages",
+        r#"[{"role":"user","content":"hi"}]"#,
+    ];
+    let out = cli(home.path(), &server.url, &args);
+    assert!(out.status.success());
+    assert_eq!(value(&out)["meta"]["source"], "live");
+    assert!(value(&out)["results"]["choices"].is_array());
+    let mut quiet = args.to_vec();
+    quiet.push("--quiet");
+    let out = cli(home.path(), &server.url, &quiet);
+    assert!(out.status.success());
+    assert!(out.stdout.is_empty() && out.stderr.is_empty());
+    let mut csv = args.to_vec();
+    csv.push("--csv");
+    let out = cli(home.path(), &server.url, &csv);
+    assert!(out.status.success());
+    assert!(value(&out)["choices"].is_array());
+    assert!(value(&out).get("meta").is_none());
+}
+
 #[test]
 fn ladder_escalate_council_and_ledger() {
     let Ok(server) = FakeServer::start() else {

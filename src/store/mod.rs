@@ -639,7 +639,8 @@ impl Store {
                 if parse_stored_time(&fetched)
                     .is_some_and(|t| chrono::Duration::from_std(max_age).is_ok_and(|max| Utc::now() - t <= max)) =>
             {
-                Ok(Some(serde_json::from_str(&raw)?))
+                // The Go loader treats an undecodable catalog as a cache miss.
+                Ok(serde_json::from_str(&raw).ok())
             }
             _ => Ok(None),
         }

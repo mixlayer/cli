@@ -201,7 +201,7 @@ impl Client {
         hex::encode(&hash[..8])
     }
 
-    fn cached(&self, path: &str) -> Option<Value> {
+    fn cached(&self, path: &str) -> Option<String> {
         if self.no_cache {
             return None;
         }
@@ -210,10 +210,10 @@ impl Client {
         if age > Duration::from_secs(300) {
             return None;
         }
-        serde_json::from_slice(&fs::read(file).ok()?).ok()
+        fs::read_to_string(file).ok()
     }
 
-    fn cache(&self, path: &str, value: &Value) {
+    fn cache(&self, path: &str, value: &str) {
         if self.no_cache {
             return;
         }
@@ -230,25 +230,31 @@ impl Client {
         }
         if let Ok(mut output) = options.open(&file) {
             use std::io::Write;
-            let _ = output.write_all(value.to_string().as_bytes());
+            let _ = output.write_all(value.as_bytes());
             #[cfg(unix)]
             let _ = fs::set_permissions(&file, std::os::unix::fs::PermissionsExt::from_mode(0o600));
         }
     }
 
     pub fn get(&mut self, path: &str) -> anyhow::Result<Value> {
+        let raw = self.get_raw(path)?;
+        Ok(serde_json::from_str(&raw).unwrap_or(Value::String(raw)))
+    }
+
+    /// Keep the wire JSON for output modes that pass it through verbatim.
+    pub fn get_raw(&mut self, path: &str) -> anyhow::Result<String> {
         if let Some(v) = self.cached(path) {
             return Ok(v);
         }
-        let v = self.request("GET", path, None, false)?;
+        let v = self.request_raw("GET", path, None, false)?;
         self.cache(path, &v);
         Ok(v)
     }
 
     pub fn get_no_cache(&mut self, path: &str) -> anyhow::Result<Value> {
-        let v = self.request("GET", path, None, false)?;
+        let v = self.request_raw("GET", path, None, false)?;
         self.cache(path, &v);
-        Ok(v)
+        Ok(serde_json::from_str(&v).unwrap_or(Value::String(v)))
     }
 
     pub fn probe(&mut self, path: &str) -> anyhow::Result<Value> {
@@ -258,7 +264,16 @@ impl Client {
         self.request("POST", path, Some(body), false)
     }
 
+    pub fn post_raw(&mut self, path: &str, body: &Value) -> anyhow::Result<String> {
+        self.request_raw("POST", path, Some(body), false)
+    }
+
     fn request(&mut self, method: &str, path: &str, body: Option<&Value>, once: bool) -> anyhow::Result<Value> {
+        let raw = self.request_raw(method, path, body, once)?;
+        Ok(serde_json::from_str(&raw).unwrap_or(Value::String(raw)))
+    }
+
+    fn request_raw(&mut self, method: &str, path: &str, body: Option<&Value>, once: bool) -> anyhow::Result<String> {
         let url = format!("{}{}", self.config.base_url.trim_end_matches('/'), path);
         for attempt in 0..=if once { 0 } else { 3 } {
             self.limiter().wait();
@@ -310,7 +325,7 @@ impl Client {
                 if method != "GET" {
                     let _ = fs::remove_dir_all(&self.cache_dir);
                 }
-                return Ok(serde_json::from_str(&text).unwrap_or(Value::String(text)));
+                return Ok(text);
             }
             let trimmed = mask_credential(&truncate_body(&text), &self.config.auth_header);
             let error = ApiError {

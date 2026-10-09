@@ -6,6 +6,191 @@ use serde_json::Value;
 
 use crate::Globals;
 
+mod table;
+pub use table::table;
+#[cfg(test)]
+mod parity_tests;
+
+#[derive(Debug, Default, PartialEq)]
+pub struct Rendered {
+    pub stdout: String,
+    pub stderr: String,
+}
+
+pub fn wants_human_table(g: &Globals, terminal: bool) -> bool {
+    terminal && !g.json && !g.csv && !g.plain && !g.quiet && !g.compact && g.select.as_deref().is_none_or(str::is_empty)
+}
+
+/// Endpoint commands filter the payload before adding provenance. Explicit
+/// JSON wins over quiet/CSV; those flags only opt out of automatic pipe JSON.
+pub fn format_endpoint(
+    raw: &str,
+    g: &Globals,
+    terminal: bool,
+    single_count: usize,
+    color: bool,
+) -> anyhow::Result<Rendered> {
+    let value: Value = serde_json::from_str(raw).unwrap_or_else(|_| Value::String(raw.into()));
+    let mut result = Rendered::default();
+    if wants_human_table(g, terminal) {
+        let count = value.as_array().map_or(single_count, Vec::len);
+        result.stderr = format!("{count} results (live)\n");
+    }
+    if g.json || (!terminal && !g.csv && !g.quiet && !g.plain) {
+        let mut data = filtered(value, g);
+        if let Some(obj) = data.as_object()
+            && obj.len() == 1
+            && let Some(array) = ["results", "data", "items", "nodes", "entries", "records"]
+                .iter()
+                .find_map(|k| obj.get(*k))
+            && array.is_array()
+        {
+            data = array.clone();
+        }
+        result.stdout = pretty(&serde_json::json!({"meta": {"source": "live"}, "results": data}))?;
+    } else {
+        let rendered = format_output(raw, g, terminal, color)?;
+        result.stdout = rendered.stdout;
+        result.stderr.push_str(&rendered.stderr);
+    }
+    Ok(result)
+}
+
+pub fn print_endpoint(raw: &str, g: &Globals, single_count: usize) -> anyhow::Result<()> {
+    let terminal = stdout_is_terminal();
+    let color = terminal
+        && !g.no_color
+        && !crate::agent_detected()
+        && std::env::var("NO_COLOR").unwrap_or_default().is_empty()
+        && std::env::var("TERM").as_deref() != Ok("dumb");
+    let rendered = format_endpoint(raw, g, terminal, single_count, color)?;
+    eprint!("{}", rendered.stderr);
+    write_stdout(rendered.stdout.as_bytes())
+}
+
+/// Go checks the file's character-device bit (including /dev/null), rather
+/// than asking whether it supports terminal ioctls.
+pub fn stdout_is_terminal() -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileTypeExt;
+        std::fs::metadata("/dev/fd/1").map_or(true, |m| m.file_type().is_char_device())
+    }
+    #[cfg(not(unix))]
+    {
+        use std::io::IsTerminal;
+        std::io::stdout().is_terminal()
+    }
+}
+
+pub fn format_output(raw: &str, g: &Globals, terminal: bool, color: bool) -> anyhow::Result<Rendered> {
+    let mut out = Rendered::default();
+    if g.quiet {
+        return Ok(out);
+    }
+    let parsed = serde_json::from_str::<Value>(raw).ok();
+    let projected = match g.select.as_deref().filter(|s| !s.is_empty()) {
+        Some(select) => select.split(',').any(|s| !s.trim().is_empty()),
+        None => g.compact,
+    };
+    let value = filtered(parsed.clone().unwrap_or(Value::Null), g);
+    let raw = if projected && parsed.is_some() {
+        escape_json_html(serde_json::to_string(&value)?)
+    } else {
+        raw.to_owned()
+    };
+    if g.csv {
+        out.stdout = csv_output(&value, &raw);
+    } else if g.json || !terminal {
+        out.stdout = if parsed.is_some() {
+            pretty(&value)?
+        } else {
+            format!("{raw}\n")
+        };
+    } else if let Some(items) = value
+        .as_array()
+        .filter(|a| !a.is_empty() && a.iter().all(Value::is_object))
+    {
+        out.stdout = table::auto_table(items, color);
+        if items.len() >= 25 {
+            out.stderr = format!(
+                "\nShowing {} results. To narrow: add --limit, --json --select, or filter flags.\n",
+                items.len()
+            );
+        }
+    } else if value.is_object() {
+        let mut sorted = value;
+        sorted.sort_all_objects();
+        out.stdout = pretty(&sorted)?;
+    } else {
+        out.stdout = format!("{raw}\n");
+    }
+    Ok(out)
+}
+
+pub(crate) fn pretty(value: &Value) -> anyhow::Result<String> {
+    Ok(format!("{}\n", escape_json_html(serde_json::to_string_pretty(value)?)))
+}
+
+fn escape_json_html(raw: String) -> String {
+    // encoding/json's default escaping also applies when embedding RawMessage.
+    raw.replace('&', "\\u0026")
+        .replace('<', "\\u003c")
+        .replace('>', "\\u003e")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
+}
+
+fn csv_output(value: &Value, raw: &str) -> String {
+    let Some(items) = value
+        .as_array()
+        .filter(|a| !a.is_empty() && a.iter().all(Value::is_object))
+    else {
+        return format!("{raw}\n");
+    };
+    let keys: std::collections::BTreeSet<_> = items.iter().flat_map(|v| v.as_object().unwrap().keys()).collect();
+    let mut out = keys.iter().map(|k| k.as_str()).collect::<Vec<_>>().join(",");
+    out.push('\n');
+    for item in items {
+        let cells: Vec<_> = keys
+            .iter()
+            .map(|key| {
+                let v = &item[*key];
+                let s = if v.is_null() { String::new() } else { go_display(v) };
+                if s.contains([',', '"', '\n']) {
+                    format!("\"{}\"", s.replace('"', "\"\""))
+                } else {
+                    s
+                }
+            })
+            .collect();
+        out.push_str(&cells.join(","));
+        out.push('\n');
+    }
+    out
+}
+
+fn go_display(v: &Value) -> String {
+    match v {
+        Value::Null => "<nil>".into(),
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.as_f64().map(|f| f.to_string()).unwrap_or_else(|| n.to_string()),
+        Value::Array(a) => format!("[{}]", a.iter().map(go_display).collect::<Vec<_>>().join(" ")),
+        Value::Object(m) => {
+            let sorted: std::collections::BTreeMap<_, _> = m.iter().collect();
+            format!(
+                "map[{}]",
+                sorted
+                    .into_iter()
+                    .map(|(k, v)| format!("{k}:{}", go_display(v)))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        }
+        Value::Bool(b) => b.to_string(),
+    }
+}
+
 /// Writes bytes to stdout. A closed pipe (`mixlayer ... | head`) is not an error.
 pub fn write_stdout(b: &[u8]) -> anyhow::Result<()> {
     use std::io::Write;
@@ -44,13 +229,18 @@ pub fn print_json(v: &Value, g: &Globals) -> anyhow::Result<()> {
 pub fn filtered(v: Value, g: &Globals) -> Value {
     match &g.select {
         Some(sel) if !sel.trim().is_empty() => select(&v, sel),
-        _ if g.compact => compact(v),
+        _ if g.select.as_deref().is_none_or(str::is_empty) && g.compact => {
+            let mut v = compact(v);
+            v.sort_all_objects();
+            v
+        }
         _ => v,
     }
 }
 
 fn compact(v: Value) -> Value {
     match v {
+        Value::Null => Value::Array(Vec::new()),
         Value::Array(items) if items.iter().all(Value::is_object) => {
             let n = items.len();
             let mut keep: std::collections::HashSet<String> = [
@@ -151,11 +341,15 @@ fn select(v: &Value, sel: &str) -> Value {
         .filter(|s| !s.is_empty())
         .map(|s| s.split('.').map(str::to_ascii_lowercase).collect())
         .collect();
+    if paths.is_empty() {
+        return v.clone();
+    }
     select_paths(v, &paths)
 }
 
 fn select_paths(v: &Value, paths: &[Vec<String>]) -> Value {
     match v {
+        Value::Null => Value::Array(Vec::new()),
         Value::Array(items) => Value::Array(items.iter().map(|v| select_paths(v, paths)).collect()),
         Value::Object(obj) => {
             let mut out = serde_json::Map::new();
@@ -185,6 +379,7 @@ fn select_paths(v: &Value, paths: &[Vec<String>]) -> Value {
                     );
                 }
             }
+            out.sort_keys();
             Value::Object(out)
         }
         other => other.clone(),

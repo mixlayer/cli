@@ -25,6 +25,9 @@ fn globals(m: &ArgMatches) -> Globals {
     Globals {
         agent: flag(m, "agent") == Some(true),
         json: pick("json"),
+        csv: flag(m, "csv") == Some(true),
+        plain: flag(m, "plain") == Some(true),
+        quiet: flag(m, "quiet") == Some(true),
         compact: pick("compact"),
         no_input: pick("no-input"),
         no_color: pick("no-color"),

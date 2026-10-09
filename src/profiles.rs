@@ -216,13 +216,19 @@ pub fn dispatch(path: &[&str], leaf: &ArgMatches, g: &Globals) -> Option<anyhow:
                     .values()
                     .map(|p| json!({"description": p.description, "field_count": p.values.len(), "name": p.name}))
                     .collect();
-                return output::print_json(&serde_json::Value::Array(rows), g);
+                let rendered = output::format_output(
+                    &serde_json::Value::Array(rows).to_string(),
+                    g,
+                    output::stdout_is_terminal(),
+                    false,
+                )?;
+                return output::write_stdout(rendered.stdout.as_bytes());
             }
             let mut rows = vec![vec!["NAME".to_string(), "FIELDS".into(), "DESCRIPTION".into()]];
             for p in s.profiles.values() {
                 rows.push(vec![p.name.clone(), p.values.len().to_string(), p.description.clone()]);
             }
-            output::write_stdout(table(&rows).as_bytes())
+            output::write_stdout(output::table(&rows).as_bytes())
         }
         "delete" => {
             let name = need_name()?;
@@ -244,33 +250,6 @@ pub fn dispatch(path: &[&str], leaf: &ArgMatches, g: &Globals) -> Option<anyhow:
         }
         _ => Err(exit::usage(format!("unknown command {sub:?} for \"mixlayer profile\""))),
     })())
-}
-
-/// Columns padded to their widest cell plus two spaces; the last column is
-/// written as is (Go's tabwriter with padding 2).
-fn table(rows: &[Vec<String>]) -> String {
-    let cols = rows.iter().map(Vec::len).max().unwrap_or(0);
-    let widths: Vec<usize> = (0..cols)
-        .map(|i| {
-            rows.iter()
-                .filter_map(|r| r.get(i))
-                .map(|c| c.chars().count())
-                .max()
-                .unwrap_or(0)
-        })
-        .collect();
-    let mut out = String::new();
-    for r in rows {
-        for (i, cell) in r.iter().enumerate() {
-            if i + 1 == r.len() {
-                out.push_str(cell);
-            } else {
-                out.push_str(&format!("{cell:<w$}", w = widths[i] + 2));
-            }
-        }
-        out.push('\n');
-    }
-    out
 }
 
 /// Arguments to append so a profile's values apply to flags the user did not
@@ -312,7 +291,10 @@ mod tests {
             vec!["NAME".to_string(), "FIELDS".into(), "DESCRIPTION".into()],
             vec!["agentish".into(), "1".into(), String::new()],
         ];
-        assert_eq!(table(&rows), "NAME      FIELDS  DESCRIPTION\nagentish  1       \n");
+        assert_eq!(
+            output::table(&rows),
+            "NAME      FIELDS  DESCRIPTION\nagentish  1       \n"
+        );
     }
 
     #[test]

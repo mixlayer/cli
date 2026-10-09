@@ -21,7 +21,7 @@ anyhow = "1.0"
 clap = { version = "4.5.4", features = ["env", "string"] }
 clap_complete = "4.5"
 serde = { version = "1.0.145", features = ["derive"] }
-serde_json = { version = "1.0", features = ["preserve_order"] }
+serde_json = { version = "1.0", features = ["preserve_order", "raw_value"] }
 regex = "1"
 sha2 = "0.10"
 hex = "0.4"

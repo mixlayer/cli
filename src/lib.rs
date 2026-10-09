@@ -44,6 +44,9 @@ pub fn agent_detected() -> bool {
 pub struct Globals {
     pub agent: bool,
     pub json: bool,
+    pub csv: bool,
+    pub plain: bool,
+    pub quiet: bool,
     pub compact: bool,
     pub no_input: bool,
     pub no_color: bool,
