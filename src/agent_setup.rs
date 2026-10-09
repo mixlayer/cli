@@ -155,7 +155,9 @@ pub fn run(mut opts: Options) -> Result<Report> {
         let previous = rec.clone();
         let result = (|| -> Result<()> {
             if let Some(rel) = skill_location(agent) {
-                changed |= skill_action(&mut report, agent, &home.join(rel), &mut rec, &opts)?;
+                // Join per component so Windows paths use one separator.
+                let dir = rel.split('/').fold(home.clone(), |p, part| p.join(part));
+                changed |= skill_action(&mut report, agent, &dir, &mut rec, &opts)?;
             }
             changed |= mcp_action(&mut report, agent, &home, &mut rec, &opts)?;
             Ok(())

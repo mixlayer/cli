@@ -112,10 +112,12 @@ fn each_agent_preview_install_idempotent_uninstall() {
         if let Some(skill) = skill_path(home.path(), agent) {
             assert!(skill.join("SKILL.md").exists(), "{agent}");
         }
-        if agent != "hermes" {
+        // The fake `claude` CLI is a shell script, which Windows cannot run;
+        // there setup correctly falls back to printing the command.
+        if agent != "hermes" && !(cfg!(windows) && agent == "claude-code") {
             assert!(statuses(&installed).contains(&"registered"), "{agent}: {installed}");
         }
-        if agent == "claude-code" {
+        if agent == "claude-code" && cfg!(unix) {
             assert!(fs::read_dir(home.path().join(".claude")).unwrap().any(|e| {
                 e.unwrap()
                     .file_name()
@@ -216,6 +218,7 @@ fn codex_toml_merge_preserves_original_bytes() {
 }
 
 #[test]
+#[cfg(unix)] // drives a fake `claude` shell script
 fn claude_modified_entry_is_not_removed() {
     let home = tempfile::tempdir().unwrap();
     let binaries = tempfile::tempdir().unwrap();
