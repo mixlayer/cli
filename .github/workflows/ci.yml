@@ -33,7 +33,7 @@ jobs:
           python3 parity/gen_help.py
           git diff --exit-code
       - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
+      - run: cargo test --locked --no-fail-fast
       - name: Build release binaries
         run: cargo build --release --locked
       - name: Install script

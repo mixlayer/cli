@@ -82,6 +82,9 @@ fn doctor_reports_missing_auth_and_paths_as_json() {
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["auth"], "not configured");
     assert_eq!(value["paths"]["status"], "ok");
-    assert!(value["cache"]["db_path"].as_str().unwrap().ends_with("/data.db"));
+    assert_eq!(
+        std::path::Path::new(value["cache"]["db_path"].as_str().unwrap()).file_name(),
+        Some(std::ffi::OsStr::new("data.db"))
+    );
     assert!(value["api"].as_str().unwrap().starts_with("unreachable:"));
 }
