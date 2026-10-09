@@ -158,8 +158,14 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
             use sha2::{Digest, Sha256};
             let hash = Sha256::digest(skill::TEXT.as_bytes());
             let home = paths::user_home().ok_or_else(|| anyhow::anyhow!("resolve user cache dir: not found"))?;
+            // Same location as Go's os.UserCacheDir.
             let cache = if cfg!(target_os = "macos") {
                 home.join("Library/Caches")
+            } else if cfg!(windows) {
+                std::env::var_os("LOCALAPPDATA")
+                    .filter(|v| !v.is_empty())
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| home.join("AppData").join("Local"))
             } else {
                 std::env::var_os("XDG_CACHE_HOME")
                     .map(std::path::PathBuf::from)

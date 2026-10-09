@@ -43,3 +43,7 @@ tempfile = "3"
 lto = "thin"
 codegen-units = 1
 strip = true
+
+[target.'cfg(windows)'.dependencies]
+# File identity (volume + file index) to detect hard links, like Go's os.SameFile.
+same-file = "1"

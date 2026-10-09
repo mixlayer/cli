@@ -150,9 +150,12 @@ pub fn external_chat(base: &str, key: &str, body: &Value, timeout: Duration) -> 
         if !key.is_empty() {
             req = req.bearer_auth(key);
         }
-        let resp = req
-            .send()
-            .map_err(|e| anyhow!("POST /chat/completions: {}", mask_key(&e.to_string(), key)))?;
+        let resp = req.send().map_err(|e| {
+            anyhow!(
+                "POST /chat/completions: {}",
+                mask_key(&crate::api::client::error_chain(&e), key)
+            )
+        })?;
         let status = resp.status().as_u16();
         let retry_after = resp
             .headers()

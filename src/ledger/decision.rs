@@ -825,7 +825,12 @@ fn same_file(a: &str, b: &str) -> anyhow::Result<bool> {
         use std::os::unix::fs::MetadataExt;
         Ok(source.dev() == dest.dev() && source.ino() == dest.ino())
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        let _ = (source, dest);
+        Ok(same_file::is_same_file(a, b)?)
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = (source, dest);
         Ok(fs::canonicalize(a)? == fs::canonicalize(b)?)

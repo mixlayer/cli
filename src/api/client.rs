@@ -304,7 +304,7 @@ impl Client {
             let response = match request.send() {
                 Ok(r) => r,
                 Err(e) => {
-                    let masked = mask_credential(&e.to_string(), &self.config.auth_header);
+                    let masked = mask_credential(&error_chain(&e), &self.config.auth_header);
                     if method == "GET" && attempt < 3 && !once {
                         continue;
                     }
@@ -476,4 +476,21 @@ mod tests {
         limiter.throttle();
         assert_eq!(limiter.rate, 6.25);
     }
+}
+
+/// An error and its causes, joined like Go's wrapped errors ("error sending
+/// request for url (...): client error (Connect): connection refused"), so
+/// network failures say why.
+pub fn error_chain(e: &(dyn std::error::Error + 'static)) -> String {
+    let mut out = e.to_string();
+    let mut cur = e.source();
+    while let Some(src) = cur {
+        let text = src.to_string();
+        if !out.contains(&text) {
+            out.push_str(": ");
+            out.push_str(&text);
+        }
+        cur = src.source();
+    }
+    out
 }

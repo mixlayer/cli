@@ -10,6 +10,8 @@ fn print_and_path_use_the_embedded_skill() {
     let printed = Command::new(cli)
         .args(["agent", "skill", "print"])
         .env("HOME", home.path())
+        .env("USERPROFILE", home.path())
+        .env("LOCALAPPDATA", home.path())
         .output()
         .unwrap();
     assert!(printed.status.success());
@@ -17,6 +19,8 @@ fn print_and_path_use_the_embedded_skill() {
     let output = Command::new(cli)
         .args(["agent", "skill", "path"])
         .env("HOME", home.path())
+        .env("USERPROFILE", home.path())
+        .env("LOCALAPPDATA", home.path())
         .output()
         .unwrap();
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
@@ -37,6 +41,8 @@ fn print_and_path_use_the_embedded_skill() {
     let ref_output = Command::new(cli)
         .args(["agent", "skill-ref"])
         .env("HOME", home.path())
+        .env("USERPROFILE", home.path())
+        .env("LOCALAPPDATA", home.path())
         .output()
         .unwrap();
     assert!(ref_output.status.success());
