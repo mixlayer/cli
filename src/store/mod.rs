@@ -721,6 +721,8 @@ fn secure_files(path: &Path) -> Result<()> {
             }
         }
     }
+    #[cfg(not(unix))]
+    let _ = path; // Windows has no POSIX modes; the per-user data dir is private.
     Ok(())
 }
 fn new_id(prefix: &str) -> Result<String> {

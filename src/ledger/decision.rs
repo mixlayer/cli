@@ -825,6 +825,7 @@ fn same_file(a: &str, b: &str) -> anyhow::Result<bool> {
     }
     #[cfg(not(unix))]
     {
+        let _ = (source, dest);
         Ok(fs::canonicalize(a)? == fs::canonicalize(b)?)
     }
 }
