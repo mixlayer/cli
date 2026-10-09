@@ -1,0 +1,6 @@
+# Keep LF everywhere so embedded files (the agent skill, generated
+# references) are byte-identical on every platform.
+* text=auto eol=lf
+*.png binary
+*.gif binary
+*.db binary

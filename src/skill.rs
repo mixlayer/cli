@@ -17,7 +17,7 @@ pub fn files() -> [(&'static str, &'static str); 3] {
 /// Render the checked-in reference from the declarative command table.
 pub fn generated_command_reference() -> String {
     let mut out = String::from(
-        "# Mixlayer commands\n\nGenerated from the Cobra command tree by `go generate ./skills/mixlayer`. Do not edit manually. Use `--help` for detailed syntax.\n\n",
+        "# Mixlayer commands\n\nGenerated from the command table by `mixlayer agent skill-ref`. Do not edit manually. Use `--help` for detailed syntax.\n\n",
     );
     fn visit<'a>(prefix: &str, cmds: &'a [Cmd], out: &mut Vec<(String, &'a Cmd)>) {
         for cmd in cmds {

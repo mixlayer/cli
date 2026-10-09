@@ -214,7 +214,13 @@ mod tests {
     #[test]
     fn clean_requires_absolute() {
         assert!(clean_override("relative/dir").is_none());
+        #[cfg(unix)]
         assert_eq!(clean_override("/a/./b/../c"), Some(PathBuf::from("/a/c")));
+        #[cfg(windows)]
+        assert_eq!(clean_override(r"C:\a\.\b\..\c"), Some(PathBuf::from(r"C:\a\c")));
+        // A rooted path without a drive is not absolute on Windows (as in Go).
+        #[cfg(windows)]
+        assert!(clean_override("/a/c").is_none());
         assert!(clean_override("~").is_some());
     }
 

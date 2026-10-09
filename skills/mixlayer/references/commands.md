@@ -1,6 +1,6 @@
 # Mixlayer commands
 
-Generated from the Cobra command tree by `go generate ./skills/mixlayer`. Do not edit manually. Use `--help` for detailed syntax.
+Generated from the command table by `mixlayer agent skill-ref`. Do not edit manually. Use `--help` for detailed syntax.
 
 ## `mixlayer agent setup`
 
