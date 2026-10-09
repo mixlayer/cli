@@ -188,10 +188,8 @@ pub fn run(mut opts: Options) -> Result<Report> {
 }
 
 fn home() -> Result<PathBuf> {
-    std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .filter(|p| !p.as_os_str().is_empty())
-        .ok_or_else(|| anyhow::anyhow!("resolve user home dir: not found"))
+    // HOME on Unix, USERPROFILE on Windows (like Go's os.UserHomeDir).
+    crate::paths::user_home().ok_or_else(|| anyhow::anyhow!("resolve user home dir: not found"))
 }
 
 fn skill_location(agent: &str) -> Option<&'static str> {

@@ -66,9 +66,11 @@ pub fn chat(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     if let Ok(Some(stops)) = m.try_get_many::<String>("stop") {
         body.insert("stop".into(), Value::Array(stops.cloned().map(Value::String).collect()));
     }
+    // Send an explicit `--thinking=false` / `--stream=false`: some models
+    // think by default, and omitting the field would keep billing for it.
     for flag in ["stream", "thinking"] {
-        if bool_arg(m, flag) {
-            body.insert(flag.into(), true.into());
+        if m.value_source(flag) == Some(clap::parser::ValueSource::CommandLine) {
+            body.insert(flag.into(), bool_arg(m, flag).into());
         }
     }
     if g.dry_run {

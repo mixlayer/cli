@@ -18,10 +18,16 @@ pub fn setup(m: &ArgMatches) -> anyhow::Result<()> {
     println!("     mixlayer doctor");
     if bool_arg(m, "launch") {
         #[cfg(target_os = "macos")]
-        let program = "open";
-        #[cfg(not(target_os = "macos"))]
-        let program = "xdg-open";
-        if let Err(e) = std::process::Command::new(program).arg(&signup).spawn() {
+        let mut cmd = std::process::Command::new("open");
+        #[cfg(windows)]
+        let mut cmd = {
+            let mut c = std::process::Command::new("rundll32");
+            c.arg("url.dll,FileProtocolHandler");
+            c
+        };
+        #[cfg(not(any(target_os = "macos", windows)))]
+        let mut cmd = std::process::Command::new("xdg-open");
+        if let Err(e) = cmd.arg(&signup).spawn() {
             eprintln!("could not open a browser: {e}");
         }
     }

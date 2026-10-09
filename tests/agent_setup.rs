@@ -26,6 +26,7 @@ fn setup(
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_mixlayer"));
     cmd.args(["agent", "setup", "--agent", agent])
         .env("HOME", home)
+        .env("USERPROFILE", home)
         .env("MIXLAYER_MCP_PATH", mcp)
         .env("CLAUDE_CONFIG_DIR", home.join(".claude"))
         .env("MIXLAYER_API_KEY", "synthetic-secret-never-write-8472")
@@ -243,6 +244,7 @@ fn setup_requires_true_explicit_yes() {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_mixlayer"));
         cmd.args(["agent", "setup", "--agent", "codex"])
             .env("HOME", home.path())
+            .env("USERPROFILE", home.path())
             .env("MIXLAYER_MCP_PATH", &mcp);
         if let Some(arg) = yes {
             cmd.arg(arg);

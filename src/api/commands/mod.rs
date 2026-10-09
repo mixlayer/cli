@@ -44,13 +44,24 @@ pub(super) fn words(m: &ArgMatches, command: &str) -> Vec<String> {
 }
 
 pub(crate) fn new_client(m: &ArgMatches) -> anyhow::Result<Client> {
-    let cfg = config::load(arg(m, "config")).map_err(|e| exit::err(Code::Config, e.to_string()))?;
     let timeout = client::parse_duration(arg(m, "timeout").unwrap_or("1m0s"))
         .map_err(|e| exit::usage(format!("invalid --timeout: {e}")))?;
+    new_client_with_timeout(m, timeout)
+}
+
+/// Like `new_client` with an explicit per-request timeout (shield detectors
+/// use `--detector-timeout`).
+pub(crate) fn new_client_with_timeout(m: &ArgMatches, timeout: std::time::Duration) -> anyhow::Result<Client> {
+    let cfg = config::load(arg(m, "config")).map_err(|e| exit::err(Code::Config, e.to_string()))?;
     let rate = arg(m, "rate-limit")
         .unwrap_or("0")
         .parse::<f64>()
         .map_err(|e| exit::usage(format!("invalid --rate-limit: {e}")))?;
+    if !rate.is_finite() || rate < 0.0 || (rate > 0.0 && std::time::Duration::try_from_secs_f64(1.0 / rate).is_err()) {
+        return Err(exit::usage(format!(
+            "invalid --rate-limit {rate}: use a number of requests per second, or 0 to disable"
+        )));
+    }
     Client::new(cfg, timeout, rate, bool_arg(m, "no-cache"))
 }
 

@@ -405,7 +405,9 @@ fn validate_response(req: &Value, res: &Value) -> anyhow::Result<()> {
         anyhow::bail!("invalid systemone response envelope");
     }
     for (id, question) in q {
-        let answer = &a[id];
+        let Some(answer) = a.get(id) else {
+            anyhow::bail!("invalid systemone response envelope");
+        };
         let typ = question_type(question);
         let mut valid = answer["type"] == typ;
         if typ == "noul" {
@@ -954,6 +956,12 @@ pub fn batch(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn missing_answer_id_is_an_error_not_a_panic() {
+        let req = json!({"model":"m","questions":{"q":{"type":"noul","instructions":"?"}}});
+        let res = json!({"model":"m","usage":{"output_tokens":0},"answers":{"other":{"type":"noul","noul":0.5}}});
+        assert!(validate_response(&req, &res).is_err());
+    }
     #[test]
     fn state_and_questions() {
         assert_eq!(

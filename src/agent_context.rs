@@ -70,7 +70,13 @@ fn command(c: &'static Cmd, path: &str, jini: bool) -> Value {
         );
     }
     if !c.flags.is_empty() {
-        let mut flags: Vec<_> = c.flags.iter().collect();
+        // Experimental flags hidden from --help stay out of agent discovery
+        // too, so nothing names the Jini surface unless it is enabled.
+        let mut flags: Vec<_> = c
+            .flags
+            .iter()
+            .filter(|f| !crate::spec_types::flag_presentation(path, f, jini).1)
+            .collect();
         flags.sort_by_key(|f| f.name);
         m.insert(
             "flags".into(),

@@ -405,6 +405,35 @@ fn sql_rejects_writes_and_private_tables() -> Result<()> {
     Ok(())
 }
 #[test]
+fn private_tables_unreadable_through_views() -> Result<()> {
+    let (_dir, mut s) = fresh()?;
+    s.ensure_vault_entry("EMAIL", "jordan@acme.example")?;
+    s.conn.execute_batch(
+        "CREATE VIEW saved AS SELECT value FROM vault;
+         CREATE VIEW terms AS SELECT * FROM shield_dictionary;
+         CREATE VIEW nested AS SELECT * FROM saved;
+         CREATE VIEW schema_rows AS SELECT sql FROM sqlite_master;
+         CREATE VIEW recent AS SELECT id FROM runs;",
+    )?;
+    for sql in [
+        "select * from saved",
+        "select * from terms",
+        "select * from nested",
+        "select * from schema_rows",
+        "select (select value from saved limit 1) as v",
+        "with x as (select * from nested) select * from x",
+    ] {
+        let err = s.query_read_only(sql, true).expect_err(sql).to_string();
+        assert!(err.contains("not readable in agent mode"), "{sql}: {err}");
+    }
+    // Ordinary views and the human CLI still work.
+    assert!(s.query_read_only("select * from recent", true).is_ok());
+    assert_eq!(s.query_read_only("select * from saved", false)?.len(), 1);
+    // The guard is removed after each query.
+    assert!(s.conn.prepare("select value from vault").is_ok());
+    Ok(())
+}
+#[test]
 fn parse_go_timestamps() {
     assert!(parse_stored_time("2026-01-02T03:04:05.123456789Z").is_some());
     assert!(parse_stored_time("2026-01-02 03:04:05.123456789 -0600 CST").is_some());

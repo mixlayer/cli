@@ -646,7 +646,18 @@ impl Store {
     }
     pub fn query_read_only(&self, query: &str, private_tables_blocked: bool) -> Result<Vec<Map<String, Value>>> {
         validate_read_sql(query, private_tables_blocked)?;
-        let mut stmt = self.conn.prepare(query)?;
+        // The text check above is a fast first line. The authorizer is the
+        // real boundary: SQLite reports every table a statement reads, also
+        // through views and triggers, so private values stay unreadable
+        // however the query is written.
+        let _guard = private_tables_blocked.then(|| PrivateReadGuard::install(&self.conn));
+        let mut stmt = self.conn.prepare(query).map_err(|e| {
+            if e.to_string().contains("not authorized") || e.to_string().contains("prohibited") {
+                anyhow!("the vault and shield dictionary hold private values and are not readable in agent mode")
+            } else {
+                e.into()
+            }
+        })?;
         if !stmt.readonly() {
             bail!("only SELECT-only read queries are allowed");
         }
@@ -841,6 +852,49 @@ fn model_matches(m: &ModelCacheRecord, term: &str) -> bool {
     }
     m.id.to_lowercase().contains(term)
 }
+/// Tables that agent-mode SQL and MCP must never read: the vault and the
+/// shield dictionary hold original private values; the schema tables would
+/// reveal view and trigger definitions.
+pub const PRIVATE_TABLES: &[&str] = &[
+    "vault",
+    "shield_dictionary",
+    "sqlite_master",
+    "sqlite_schema",
+    "sqlite_temp_master",
+    "sqlite_temp_schema",
+];
+
+fn private_read_authorizer(ctx: rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization {
+    use rusqlite::hooks::{AuthAction, Authorization};
+    match ctx.action {
+        AuthAction::Read { table_name, .. } if PRIVATE_TABLES.iter().any(|t| t.eq_ignore_ascii_case(table_name)) => {
+            Authorization::Deny
+        }
+        AuthAction::Pragma { .. } | AuthAction::Attach { .. } | AuthAction::Detach { .. } => Authorization::Deny,
+        AuthAction::Function { function_name } if function_name.eq_ignore_ascii_case("load_extension") => {
+            Authorization::Deny
+        }
+        _ => Authorization::Allow,
+    }
+}
+
+/// Installs the private-table authorizer for one query and removes it on drop.
+pub struct PrivateReadGuard<'c>(&'c Connection);
+
+impl<'c> PrivateReadGuard<'c> {
+    pub fn install(conn: &'c Connection) -> Self {
+        conn.authorizer(Some(private_read_authorizer));
+        Self(conn)
+    }
+}
+
+impl Drop for PrivateReadGuard<'_> {
+    fn drop(&mut self) {
+        self.0
+            .authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>);
+    }
+}
+
 pub(crate) fn validate_read_sql(query: &str, private_tables_blocked: bool) -> Result<()> {
     let trimmed = query.trim();
     if !Regex::new(r"(?i)^(select|with)\b")?.is_match(trimmed) {

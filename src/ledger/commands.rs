@@ -259,11 +259,9 @@ fn across(
     reasoning: bool,
     seed: i64,
 ) -> anyhow::Result<Vec<ResultRow>> {
+    // One client for the command; each thread gets a worker that shares its
+    // rate limiter, so `--rate-limit` spaces all the parallel calls.
     let template = new_chat_client(m)?;
-    let cfg = template.config;
-    let timeout = crate::api::client::parse_duration(arg(m, "timeout").unwrap_or("1m0s"))?;
-    let rate = parse_f64(m, "rate-limit", 0.0)?;
-    let no_cache = bool_arg(m, "no-cache");
     let default_models;
     let models = if models.is_empty() {
         default_models = rungs("all");
@@ -275,16 +273,8 @@ fn across(
         let handles: Vec<_> = models
             .iter()
             .map(|model| {
-                let cfg = cfg.clone();
-                scope.spawn(move || match Client::new(cfg, timeout, rate, no_cache) {
-                    Ok(mut client) => chat(&mut client, prompt, model, reasoning, seed),
-                    Err(e) => ResultRow {
-                        model: model.clone(),
-                        error: Some(e.to_string()),
-                        cost_unknown: true,
-                        ..Default::default()
-                    },
-                })
+                let mut client = template.worker();
+                scope.spawn(move || chat(&mut client, prompt, model, reasoning, seed))
             })
             .collect();
         handles

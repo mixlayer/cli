@@ -173,7 +173,14 @@ impl ServerHandler for MixlayerServer {
             return Err(McpError::invalid_params("unknown tool", None));
         }
         let args = request.arguments.unwrap_or_default();
-        Ok(match self.call(&request.name, &args) {
+        // Tools use the blocking HTTP client and spawn the CLI, so run them
+        // on a blocking thread rather than inside the async runtime.
+        let server = self.clone();
+        let name = request.name.to_string();
+        let result = tokio::task::spawn_blocking(move || server.call(&name, &args))
+            .await
+            .map_err(|e| McpError::internal_error(format!("tool task failed: {e}"), None))?;
+        Ok(match result {
             Ok(text) => CallToolResult::success(vec![ContentBlock::text(text)]).into(),
             Err(error) => CallToolResult::error(vec![ContentBlock::text(error.to_string())]).into(),
         })
@@ -358,7 +365,18 @@ fn sql(args: &Map<String, Value>) -> anyhow::Result<String> {
     }
     validate_read_query(query)?;
     let db = crate::store::Store::open_read_only(paths::dir(Kind::Data)?.join("data.db"))?;
-    let mut stmt = db.connection().prepare(query)?;
+    // The authorizer is the real boundary: it refuses private tables even
+    // when a query reaches them through a view or trigger.
+    let _guard = crate::store::PrivateReadGuard::install(db.connection());
+    let mut stmt = db.connection().prepare(query).map_err(|e| {
+        if e.to_string().contains("not authorized") || e.to_string().contains("prohibited") {
+            anyhow::anyhow!(
+                "the vault and shield dictionary hold private values and cannot be queried over MCP; use the mixlayer CLI locally"
+            )
+        } else {
+            e.into()
+        }
+    })?;
     if !stmt.readonly() {
         anyhow::bail!("only SELECT queries are allowed");
     }
@@ -642,7 +660,13 @@ fn mirror_cli_args(path: &[String], args: &Map<String, Value>) -> anyhow::Result
                 "flag-like argument {bad:?} not allowed in positional args field; use structured tool parameters instead"
             );
         }
-        cli.extend(words);
+        // `--` makes every word a plain argument, so `args` can never name a
+        // subcommand (e.g. reach the hidden `shield dict` from the `shield`
+        // tool).
+        if !words.is_empty() {
+            cli.push("--".into());
+            cli.extend(words);
+        }
     }
     Ok(cli)
 }
@@ -774,7 +798,7 @@ mod tests {
         args.insert("args".into(), Value::String("contacts".into()));
         assert_eq!(
             mirror_cli_args(&["grep".into()], &args).unwrap(),
-            ["grep", "--limit", "10", "contacts"]
+            ["grep", "--limit", "10", "--", "contacts"]
         );
         args.insert("args".into(), Value::String("contacts --config /tmp/evil".into()));
         assert!(mirror_cli_args(&["grep".into()], &args).is_err());
@@ -819,5 +843,16 @@ mod tests {
             assert_eq!(result["truncated"], true);
             assert!(result["preview"].as_str().is_some_and(|s| !s.is_empty()));
         }
+    }
+
+    #[test]
+    fn args_never_select_a_subcommand() {
+        let path = vec!["shield".to_string()];
+        let mut args = Map::new();
+        args.insert("args".into(), Value::String("dict list".into()));
+        let cli = mirror_cli_args(&path, &args).unwrap();
+        assert_eq!(cli, ["shield", "--", "dict", "list"]);
+        args.insert("args".into(), Value::String("restructure /etc/passwd".into()));
+        assert_eq!(mirror_cli_args(&path, &args).unwrap()[1], "--");
     }
 }

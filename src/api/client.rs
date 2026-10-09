@@ -54,7 +54,9 @@ impl Limiter {
         if self.rate <= 0.0 {
             return;
         }
-        let interval = Duration::from_secs_f64(1.0 / self.rate);
+        let Ok(interval) = Duration::try_from_secs_f64(1.0 / self.rate) else {
+            return;
+        };
         if let Some(last) = self.last
             && let Some(remaining) = interval.checked_sub(last.elapsed())
         {
@@ -90,7 +92,9 @@ pub struct Client {
     http: HttpClient,
     cache_dir: PathBuf,
     no_cache: bool,
-    limiter: Limiter,
+    /// Shared by every clone, so parallel calls from one command respect
+    /// one `--rate-limit` (as the Go client did).
+    limiter: std::sync::Arc<std::sync::Mutex<Limiter>>,
 }
 
 pub fn parse_duration(raw: &str) -> anyhow::Result<Duration> {
@@ -161,8 +165,24 @@ impl Client {
             http,
             cache_dir: paths::dir(Kind::Cache)?.join("http"),
             no_cache,
-            limiter: Limiter::new(rate),
+            limiter: std::sync::Arc::new(std::sync::Mutex::new(Limiter::new(rate))),
         })
+    }
+
+    /// A client for another thread of the same command: same settings and
+    /// the same rate limiter.
+    pub fn worker(&self) -> Self {
+        Self {
+            config: self.config.clone(),
+            http: self.http.clone(),
+            cache_dir: self.cache_dir.clone(),
+            no_cache: self.no_cache,
+            limiter: self.limiter.clone(),
+        }
+    }
+
+    fn limiter(&self) -> std::sync::MutexGuard<'_, Limiter> {
+        self.limiter.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     fn cache_key(&self, path: &str) -> String {
@@ -241,7 +261,7 @@ impl Client {
     fn request(&mut self, method: &str, path: &str, body: Option<&Value>, once: bool) -> anyhow::Result<Value> {
         let url = format!("{}{}", self.config.base_url.trim_end_matches('/'), path);
         for attempt in 0..=if once { 0 } else { 3 } {
-            self.limiter.wait();
+            self.limiter().wait();
             let mut request = match method {
                 "GET" => self.http.get(&url),
                 "POST" => self.http.post(&url),
@@ -286,7 +306,7 @@ impl Client {
             let bytes = response.bytes()?;
             let text = String::from_utf8_lossy(&bytes).into_owned();
             if status < 400 {
-                self.limiter.success();
+                self.limiter().success();
                 if method != "GET" {
                     let _ = fs::remove_dir_all(&self.cache_dir);
                 }
@@ -301,13 +321,13 @@ impl Client {
                 retry_after: retry_after.clone(),
             };
             if status == 429 && attempt < 3 && !once {
-                self.limiter.throttle();
+                self.limiter().throttle();
                 let wait = retry_after_wait(&retry_after);
                 eprintln!(
                     "rate limited, waiting {wait:?} (attempt {}/{}, rate adjusted to {:.1} req/s)",
                     attempt + 1,
                     3,
-                    self.limiter.rate
+                    self.limiter().rate
                 );
                 thread::sleep(wait);
                 continue;

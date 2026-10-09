@@ -262,7 +262,16 @@ impl Runtime {
                 r.key = key_from_env(arg(m, "detector-key-env").unwrap_or(""), false)?;
             }
             "mixlayer" => {
-                let client = commands::new_client(m)?;
+                // A model detector sends the raw text for detection, so a
+                // dry run must not use one (same rule as `shield ask`).
+                if g.dry_run {
+                    return Err(exit::usage(
+                        "--dry-run requires --detector regex or local:<model> because a mixlayer detector sends the raw text over the network",
+                    ));
+                }
+                // Bound each detector call by --detector-timeout (capped by
+                // --timeout), as for the other detector runtimes.
+                let client = commands::new_client_with_timeout(m, r.timeout)?;
                 r.base_url = client.config.base_url.clone();
                 let url = Url::parse(&r.base_url)?;
                 r.host = url[url::Position::BeforeHost..url::Position::AfterPort].into();
@@ -436,5 +445,16 @@ mod tests {
             "http://127.0.0.1:11434/v1",
         ]);
         assert!(Runtime::new(&m, &Globals::default(), "local:fake").is_ok());
+    }
+
+    #[test]
+    fn dry_run_refuses_mixlayer_detector() {
+        let m = ask_matches(&["--detector", "mixlayer:some/model"]);
+        let g = Globals {
+            dry_run: true,
+            ..Globals::default()
+        };
+        let err = Runtime::new(&m, &g, "mixlayer:some/model").err().expect("must refuse");
+        assert_eq!(crate::exit::code_of(&err), Code::Usage);
     }
 }

@@ -62,8 +62,30 @@ fn diff(go: &Value, rs: &Value, path: &str, out: &mut Vec<String>) {
     }
 }
 
+/// One intentional difference from Go: with Jini off, flags that `--help`
+/// hides (they describe the experimental Jini checker) are also left out of
+/// agent-context. Go listed them with Jini wording.
+fn drop_hidden_jini_flags(v: &mut Value) {
+    for (cmd, flag, usage) in mixlayer::spec_types::JINI_OFF_FLAGS {
+        if usage.is_some() {
+            continue;
+        }
+        let Some(commands) = v["commands"].as_array_mut() else {
+            continue;
+        };
+        for c in commands.iter_mut().filter(|c| c["name"] == *cmd) {
+            if let Some(flags) = c["flags"].as_array_mut() {
+                flags.retain(|f| f["name"] != *flag);
+            }
+        }
+    }
+}
+
 fn assert_parity(snapshot: &str, jini: bool) {
-    let go = normalize(go_snapshot(snapshot));
+    let mut go = normalize(go_snapshot(snapshot));
+    if !jini {
+        drop_hidden_jini_flags(&mut go);
+    }
     let rs = normalize(rust_context(jini));
     let mut out = Vec::new();
     diff(&go, &rs, "$", &mut out);

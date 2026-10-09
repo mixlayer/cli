@@ -8,13 +8,19 @@ pub struct Tranche {
     pub text: String,
 }
 
-fn csv_text(header: &csv::StringRecord, rows: &[csv::StringRecord]) -> String {
-    let mut w = csv::WriterBuilder::new().has_headers(false).from_writer(Vec::new());
-    w.write_record(header).unwrap();
+fn csv_text(header: &csv::StringRecord, rows: &[csv::StringRecord]) -> Result<String> {
+    // Rows may be ragged (the reader is flexible), so the writer must be too.
+    let mut w = csv::WriterBuilder::new()
+        .has_headers(false)
+        .flexible(true)
+        .from_writer(Vec::new());
+    w.write_record(header)?;
     for row in rows {
-        w.write_record(row).unwrap();
+        w.write_record(row)?;
     }
-    String::from_utf8(w.into_inner().unwrap()).unwrap()
+    Ok(String::from_utf8(
+        w.into_inner().map_err(|e| anyhow::anyhow!("writing CSV: {e}"))?,
+    )?)
 }
 
 pub fn split_records(input: &str, max_bytes: usize) -> Result<Vec<Tranche>> {
@@ -33,13 +39,13 @@ pub fn split_records(input: &str, max_bytes: usize) -> Result<Vec<Tranche>> {
         let mut from = 2;
         for (i, row) in records.iter().enumerate().skip(1) {
             batch.push(row.clone());
-            if batch.len() > 1 && csv_text(&records[0], &batch).len() > max_bytes {
+            if batch.len() > 1 && csv_text(&records[0], &batch)?.len() > max_bytes {
                 let last = batch.pop().unwrap();
                 out.push(Tranche {
                     index: out.len() + 1,
                     from_line: from,
                     to_line: i,
-                    text: csv_text(&records[0], &batch),
+                    text: csv_text(&records[0], &batch)?,
                 });
                 batch = vec![last];
                 from = i + 1;
@@ -50,7 +56,7 @@ pub fn split_records(input: &str, max_bytes: usize) -> Result<Vec<Tranche>> {
                 index: out.len() + 1,
                 from_line: from,
                 to_line: records.len(),
-                text: csv_text(&records[0], &batch),
+                text: csv_text(&records[0], &batch)?,
             });
         }
         return Ok(out);
@@ -128,4 +134,13 @@ pub fn split_oversized(s: &str, max_bytes: usize) -> Vec<String> {
         start = end;
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn ragged_csv_does_not_panic() {
+        let t = super::split_records("a,b\n1,2,3\n4\n", 0).unwrap();
+        assert!(t.iter().any(|t| t.text.contains("1,2,3")));
+    }
 }
