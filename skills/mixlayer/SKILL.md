@@ -21,6 +21,8 @@ Mask personal data before sending it to Mixlayer, Claude, GPT, or any other mode
 | `local:<ollama model>` | Keeps detection and raw text on this machine; preferred for sensitive free text. |
 | `mixlayer:<model>` | Sends raw text to Mixlayer once for detection before the masked model call. |
 
+For a CSV whose private columns are known (customer, email, company, account), pass them with `--mask-columns customer,company` so every value in those columns is masked even when no detector recognizes it. Preview with `mixlayer shield redact <file> --mask-columns ... --agent` before `shield ask`.
+
 For an external upstream, use a model detector. Regex-only requires the explicit CLI override and remains risky. A model detector cannot run in a no-network dry run; preview with regex, then run the selected detector. Inspect the receipt's `unrestored_tokens` and `leaked_pii_count`. Never claim zero leakage. Never print vault values.
 
 ## Exit codes and retry
