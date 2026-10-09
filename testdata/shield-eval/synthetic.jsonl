@@ -1,0 +1,41 @@
+# All people, addresses, organizations, IDs, and records in this file are synthetic and fictional.
+{"id":"s01","text":"Zora Quill asked for a callback.","entities":[{"kind":"PERSON","text":"Zora Quill"}]}
+{"id":"s02","text":"milo paperboat left a note.","entities":[{"kind":"PERSON","text":"milo paperboat"}]}
+{"id":"s03","text":"Call Captain Teacup after lunch.","entities":[{"kind":"PERSON","text":"Captain Teacup"}]}
+{"id":"s04","text":"Nickname Pebble belongs to Zora Quill.","entities":[{"kind":"PERSON","text":"Pebble"},{"kind":"PERSON","text":"Zora Quill"}]}
+{"id":"s05","text":"Email nebula.person@example.invalid today.","entities":[{"kind":"EMAIL","text":"nebula.person@example.invalid"}]}
+{"id":"s06","text":"The synthetic contact uses fake@fiction.example.","entities":[{"kind":"EMAIL","text":"fake@fiction.example"}]}
+{"id":"s07","text":"Phone 202-555-0147 is a fictional number.","entities":[{"kind":"PHONE","text":"202-555-0147"}]}
+{"id":"s08","text":"Phone +1 (202) 555-0188 is fictional.","entities":[{"kind":"PHONE","text":"+1 (202) 555-0188"}]}
+{"id":"s09","text":"Fictional UK phone +44 20 7946 0958.","entities":[{"kind":"PHONE","text":"+44 20 7946 0958"}]}
+{"id":"s10","text":"Fictional AU phone +61 2 5550 0123.","entities":[{"kind":"PHONE","text":"+61 2 5550 0123"}]}
+{"id":"s11","text":"Zora Quill lives at 123 Imaginary Lane, Nowhere City.","entities":[{"kind":"PERSON","text":"Zora Quill"},{"kind":"ADDRESS","text":"123 Imaginary Lane, Nowhere City"}]}
+{"id":"s12","text":"Deliver to 42 Fictional Road, Pretendville.","entities":[{"kind":"ADDRESS","text":"42 Fictional Road, Pretendville"}]}
+{"id":"s13","text":"The fake UK-style NI is QQ 12 34 56 C.","entities":[{"kind":"ID_NUMBER","text":"QQ 12 34 56 C"}]}
+{"id":"s14","text":"The made-up AU-style TFN is 123 456 782.","entities":[{"kind":"ID_NUMBER","text":"123 456 782"}]}
+{"id":"s15","text":"Fictional birth date for Zora Quill: 2099-04-03.","entities":[{"kind":"PERSON","text":"Zora Quill"},{"kind":"DATE_OF_BIRTH","text":"2099-04-03"}]}
+{"id":"s16","text":"DOB 2088/11/22 belongs to Milo Paperboat.","entities":[{"kind":"DATE_OF_BIRTH","text":"2088/11/22"},{"kind":"PERSON","text":"Milo Paperboat"}]}
+{"id":"s17","text":"Zora Quill mentioned fictional migraine care.","entities":[{"kind":"PERSON","text":"Zora Quill"},{"kind":"MEDICAL","text":"migraine"}]}
+{"id":"s18","text":"Milo Paperboat has an invented asthma note.","entities":[{"kind":"PERSON","text":"Milo Paperboat"},{"kind":"MEDICAL","text":"asthma"}]}
+{"id":"s19","text":"{\"name\":\"Zora Quill\",\"city\":\"Pretendville\"}","entities":[{"kind":"PERSON","text":"Zora Quill"},{"kind":"LOCATION","text":"Pretendville"}]}
+{"id":"s20","text":"name,email\nMilo Paperboat,milo@fiction.example","entities":[{"kind":"PERSON","text":"Milo Paperboat"},{"kind":"EMAIL","text":"milo@fiction.example"}]}
+{"id":"s21","text":"Imaginary Planet LLC signed the fake form.","entities":[{"kind":"ORG","text":"Imaginary Planet LLC"}]}
+{"id":"s22","text":"The made-up company Cloud Unicorn Ltd replied.","entities":[{"kind":"ORG","text":"Cloud Unicorn Ltd"}]}
+{"id":"s23","text":"Fictional account ACCT-FAKE-0001 is closed.","entities":[{"kind":"ACCOUNT","text":"ACCT-FAKE-0001"}]}
+{"id":"s24","text":"Mock account ZZ-0000-TEST belongs to Pebble.","entities":[{"kind":"ACCOUNT","text":"ZZ-0000-TEST"},{"kind":"PERSON","text":"Pebble"}]}
+{"id":"s25","text":"Fictional SSN 000-00-0000 belongs to Zora Quill.","entities":[{"kind":"SSN","text":"000-00-0000"},{"kind":"PERSON","text":"Zora Quill"}]}
+{"id":"s26","text":"The example IP 192.0.2.10 is documentation-only.","entities":[{"kind":"IP","text":"192.0.2.10"}]}
+{"id":"s27","text":"The URL https://example.invalid/fake is fictional.","entities":[{"kind":"URL","text":"https://example.invalid/fake"}]}
+{"id":"s28","text":"Call 415.555.0132 for the synthetic record.","entities":[{"kind":"PHONE","text":"415.555.0132"}]}
+{"id":"s29","text":"zora quill wrote from 7 Makebelieve Street.","entities":[{"kind":"PERSON","text":"zora quill"},{"kind":"ADDRESS","text":"7 Makebelieve Street"}]}
+{"id":"s30","text":"ALIAS pebble is a fictional nickname.","entities":[{"kind":"PERSON","text":"pebble"}]}
+{"id":"s31","text":"Milo Paperboat and Zora Quill exchanged notes.","entities":[{"kind":"PERSON","text":"Milo Paperboat"},{"kind":"PERSON","text":"Zora Quill"}]}
+{"id":"s32","text":"Fictional location Moonbase Pretend was selected.","entities":[{"kind":"LOCATION","text":"Moonbase Pretend"}]}
+{"id":"s33","text":"No private information in this sentence.","entities":[]}
+{"id":"s34","text":"The weather is pleasantly imaginary.","entities":[]}
+{"id":"s35","text":"A table has four blank columns.","entities":[]}
+{"id":"s36","text":"The report contains only aggregate counts.","entities":[]}
+{"id":"s37","text":"A fictional story can have no identifiable details.","entities":[]}
+{"id":"s38","text":"Please summarize the generic paragraph.","entities":[]}
+{"id":"s39","text":"No identifiers were supplied here.","entities":[]}
+{"id":"s40","text":"A blank form has headings and no values.","entities":[]}

@@ -1,0 +1,42 @@
+version: "2"
+
+linters:
+  enable:
+    - errorlint
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+  settings:
+    errcheck:
+      # Writes to stdout/stderr and best-effort cleanup are intentionally
+      # unchecked; every other ignored error must be handled.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Conn).Close
+        - (*database/sql.Tx).Rollback
+        - (*github.com/mixlayer/cli/internal/store.Store).Close
+        - os.RemoveAll
+        - os.Remove
+  exclusions:
+    rules:
+      # Tests may use context-free helpers and unchecked cleanup.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

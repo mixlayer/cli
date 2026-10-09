@@ -1,0 +1,52 @@
+version: 2
+project_name: mixlayer
+changelog:
+  disable: true
+builds:
+  - id: mixlayer
+    main: ./cmd/mixlayer
+    binary: mixlayer
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X github.com/mixlayer/cli/internal/cli.version={{ .Version }}
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+  - id: mixlayer-mcp
+    main: ./cmd/mixlayer-mcp
+    binary: mixlayer-mcp
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+checksum:
+  name_template: checksums.txt
+brews:
+  - name: mixlayer
+    repository:
+      owner: mixlayer
+      name: homebrew-tap
+    skip_upload: auto
+    homepage: "https://github.com/mixlayer/cli"
+    description: "Privacy-first Mixlayer CLI for OpenAI-compatible chat, local PII redaction and vaulting, reasoning-aware model ladders, live model catalog refresh, and ledger-backed cost proofs."
+    install: |
+      bin.install "mixlayer"
+      bin.install "mixlayer-mcp"

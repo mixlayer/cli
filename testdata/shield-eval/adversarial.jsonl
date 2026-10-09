@@ -1,0 +1,28 @@
+# Synthetic fictional privacy cases only. No real people, accounts, or contact details.
+{"id":"a01","text":"the note was signed milo paperboat.","entities":[{"kind":"PERSON","text":"milo paperboat"}]}
+{"id":"a02","text":"Please call Zorra Quill tomorrow about the fake file.","entities":[{"kind":"PERSON","text":"Zorra Quill"}]}
+{"id":"a03","text":"Her friends only say Pebble.","entities":[{"kind":"PERSON","text":"Pebble"}]}
+{"id":"a04","text":"Reach jane dot roe at example dot com for the fictional packet.","entities":[{"kind":"EMAIL","text":"jane dot roe at example dot com"}]}
+{"id":"a05","text":"Fictional UK line +44 20 7946 0991.","entities":[{"kind":"PHONE","text":"+44 20 7946 0991"}]}
+{"id":"a06","text":"Fictional AU line +61 2 5550 0199.","entities":[{"kind":"PHONE","text":"+61 2 5550 0199"}]}
+{"id":"a07","text":"Fictional DE line +49 30 5555 0100.","entities":[{"kind":"PHONE","text":"+49 30 5555 0100"}]}
+{"id":"a08","text":"Fictional IN line +91 22 5555 0101.","entities":[{"kind":"PHONE","text":"+91 22 5555 0101"}]}
+{"id":"a09","text":"Fictional IBAN ZZ99 MIXL 0000 0000 0000 00 is not a real account.","entities":[{"kind":"ACCOUNT","text":"ZZ99 MIXL 0000 0000 0000 00"}]}
+{"id":"a10","text":"Made-up UK NI number XX 00 11 22 C.","entities":[{"kind":"ID_NUMBER","text":"XX 00 11 22 C"}]}
+{"id":"a11","text":"Made-up AU TFN-like id 000 111 222.","entities":[{"kind":"ID_NUMBER","text":"000 111 222"}]}
+{"id":"a12","text":"Ship the prop to Imaginary Lane, Nowhere City only.","entities":[{"kind":"ADDRESS","text":"Imaginary Lane, Nowhere City"}]}
+{"id":"a13","text":"{\"name\":\"Zibble Quark\",\"city\":\"Pretendville\"}","entities":[{"kind":"PERSON","text":"Zibble Quark"},{"kind":"LOCATION","text":"Pretendville"}]}
+{"id":"a14","text":"name,email\nZibble Quark,zibble@fiction.example","entities":[{"kind":"PERSON","text":"Zibble Quark"},{"kind":"EMAIL","text":"zibble@fiction.example"}]}
+{"id":"a15","text":"// owner: Zibble Quark — fictional comment","entities":[{"kind":"PERSON","text":"Zibble Quark"}]}
+{"id":"a16","text":"2026-10-05T00:00:00Z INFO user=Zibble Quark action=noop","entities":[{"kind":"PERSON","text":"Zibble Quark"}]}
+{"id":"a17","text":"La paciente ficticia Zora Quill tiene una migraña inventada.","entities":[{"kind":"PERSON","text":"Zora Quill"},{"kind":"MEDICAL","text":"migraña"}]}
+{"id":"a18","text":"Die erfundene Person Milo Papierboot wohnt in der Fantasiestraße.","entities":[{"kind":"PERSON","text":"Milo Papierboot"},{"kind":"ADDRESS","text":"Fantasiestraße"}]}
+{"id":"a19","text":"Hope called about the fictional form.","entities":[{"kind":"PERSON","text":"Hope"}]}
+{"id":"a20","text":"Ask Art about the blank form.","entities":[{"kind":"PERSON","text":"Art"}]}
+{"id":"a21","text":"Contact Zora\nQuill and write to nebula.person\n@example.invalid about the fake case.","entities":[{"kind":"PERSON","text":"Zora"},{"kind":"PERSON","text":"Quill"},{"kind":"EMAIL","text":"nebula.person"},{"kind":"EMAIL","text":"@example.invalid"}]}
+{"id":"a22","text":"Callback 202-555-0199 is a fictional US number for Zora Quill.","entities":[{"kind":"PHONE","text":"202-555-0199"},{"kind":"PERSON","text":"Zora Quill"}]}
+{"id":"a23","text":"The weather is pleasantly imaginary.","entities":[]}
+{"id":"a24","text":"Quarterly totals are aggregate only.","entities":[]}
+{"id":"a25","text":"Please mark the summer bill for art class.","entities":[]}
+{"id":"a26","text":"A blank form has headings and no values.","entities":[]}
+{"id":"a27","text":"Mixed bait: Zorra Quill, jane dot roe at example dot com, IBAN ZZ99 MIXL 0000 0000 0000 00, phone +44 20 7946 0991.","entities":[{"kind":"PERSON","text":"Zorra Quill"},{"kind":"EMAIL","text":"jane dot roe at example dot com"},{"kind":"ACCOUNT","text":"ZZ99 MIXL 0000 0000 0000 00"},{"kind":"PHONE","text":"+44 20 7946 0991"}]}

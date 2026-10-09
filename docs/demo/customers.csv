@@ -1,0 +1,7 @@
+customer,email,phone,company,plan,mrr_usd,seats_used,seats_paid,last_login_days,tickets_30d,note
+Jordan Avery,jordan.avery@northwind.example,415-555-0134,Northwind Traders,Team,1200,4,20,41,6,"Asked twice how to export data"
+Priya Raman,priya@lumen.example,212-555-0188,Lumen Health,Enterprise,8400,180,200,1,2,"Expanding to a second team in Q4"
+Marcus Oyelaran,marcus.o@fieldstone.example,646-555-0102,Fieldstone Labs,Team,900,9,10,3,0,"Power user who built three integrations"
+Elena Sokolova,elena@brightpath.example,312-555-0177,Brightpath Logistics,Business,3100,22,60,19,9,"Champion left the company in August"
+Hiroshi Tanaka,h.tanaka@kestrel.example,503-555-0149,Kestrel Analytics,Business,2600,48,50,2,1,"Asked about SSO and annual billing"
+Camila Duarte,camila.duarte@verdant.example,617-555-0121,Verdant Foods,Team,600,2,10,63,0,"No logins since the July pricing change"

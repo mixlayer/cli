@@ -1,0 +1,21 @@
+name: Live API tests
+
+# Runs against the real Mixlayer API with free models only.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Live tests (free models)
+        env:
+          MIXLAYER_API_KEY: ${{ secrets.MIXLAYER_API_KEY }}
+        run: go test -tags live -count=1 -v ./e2e/
