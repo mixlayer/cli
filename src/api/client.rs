@@ -268,6 +268,11 @@ impl Client {
         self.request_raw("POST", path, Some(body), false)
     }
 
+    /// Like `post`, only a 429 is retried, so a delete never runs twice.
+    pub fn delete(&mut self, path: &str) -> anyhow::Result<Value> {
+        self.request("DELETE", path, None, false)
+    }
+
     fn request(&mut self, method: &str, path: &str, body: Option<&Value>, once: bool) -> anyhow::Result<Value> {
         let raw = self.request_raw(method, path, body, once)?;
         Ok(serde_json::from_str(&raw).unwrap_or(Value::String(raw)))
@@ -280,6 +285,7 @@ impl Client {
             let mut request = match method {
                 "GET" => self.http.get(&url),
                 "POST" => self.http.post(&url),
+                "DELETE" => self.http.delete(&url),
                 _ => anyhow::bail!("unsupported HTTP method"),
             }
             .header(

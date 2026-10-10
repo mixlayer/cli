@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `mixlayer agent setup --platform` registers Mixlayer's hosted Platform MCP server (`https://api.mixlayer.com/v1/mcp`) with Claude Code, Codex and Cursor, so an agent can manage organizations, members, API keys, analytics and billing. The agent config holds only the name of the environment variable with the key (`--key-env`, default `MIXLAYER_API_KEY`). If that variable is set, setup checks the key with one read-only request and reports whether the Platform API accepted it. Uninstall removes these entries too. See [docs/platform-mcp.md](docs/platform-mcp.md).
+- New `mixlayer keys list|create|rotate|delete` manage API keys through the Platform API. `create` and `rotate` print the new secret once, alone on stdout (or in the object with `--json`), or store it with `--save`. `rotate` and `delete` require an explicit `--yes` (agent mode doesn't imply it).
 - `--csv`, `--plain` and `--quiet` now do what their help says on every command that prints data, including `sql`, `grep`, `savings`, `ladder`, `vault list`, `shield audit` and `profile list`: real CSV (header row, RFC 4180 quoting, nested values as JSON), tab-separated text, or one value per line. `chat --quiet` and `ask --quiet` print just the answer. An explicit format flag now beats the JSON implied by agent mode; an explicit `--json` still wins.
 
 ## v0.1.0 (2026-10-09)

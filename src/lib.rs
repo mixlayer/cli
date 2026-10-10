@@ -5,6 +5,7 @@ pub mod agent_setup;
 pub mod api;
 pub mod cli;
 pub mod exit;
+pub mod help_extra;
 pub mod help_text;
 pub mod ledger;
 pub mod mcp;

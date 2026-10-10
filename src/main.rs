@@ -143,16 +143,25 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
         ["agent", "setup"] => {
             let name = leaf.get_one::<String>("agent").cloned().unwrap_or_else(|| "all".into());
             let explicit_yes = flag(leaf, "yes") == Some(true);
+            let bool_flag = |name: &str| leaf.try_get_one::<bool>(name).ok().flatten().copied().unwrap_or(false);
+            let platform = if bool_flag("platform") {
+                let key_env = leaf
+                    .get_one::<String>("key-env")
+                    .map(String::as_str)
+                    .unwrap_or("MIXLAYER_API_KEY");
+                Some(
+                    agent_setup::Platform::new(&api::platform_base()?, key_env)
+                        .map_err(|e| exit::usage(e.to_string()))?,
+                )
+            } else {
+                None
+            };
             let report = agent_setup::run(agent_setup::Options {
                 agent: name,
                 mcp_binary: agent_setup::mcp_binary(),
                 dry_run: g.dry_run || !explicit_yes,
-                uninstall: leaf
-                    .try_get_one::<bool>("uninstall")
-                    .ok()
-                    .flatten()
-                    .copied()
-                    .unwrap_or(false),
+                uninstall: bool_flag("uninstall"),
+                platform,
             })?;
             println!("{}", serde_json::to_string_pretty(&report)?);
             Ok(())

@@ -11,6 +11,12 @@ description: Use Mixlayer models and OpenAI-compatible calls; compare models, or
 - Check setup with `mixlayer doctor --json`; use `mixlayer which "capability" --json` to find commands.
 - Use `mixlayer ladder "question" --agent --dry-run` to compare answers, reasoning, latency, and cost across models. Use `mixlayer escalate "question" --agent --dry-run` when a cheap answer may be sufficient and a stronger model should be called only if needed.
 
+## Organization and API keys
+
+- For organization work (API keys, members, analytics, billing), use the `mixlayer-platform` MCP server when it is configured; otherwise use `mixlayer keys list|create|rotate|delete`. Both need a key with `api-read` to read; creating, rotating or deleting keys needs `api-admin`.
+- Create keys with the fewest permissions the job needs (`--permissions inference` for a script that only calls models). Never echo a new secret into chat or a file the user did not ask for; prefer `mixlayer keys create --save` or piping stdout into a secret store.
+- Rotating or deleting a key breaks whatever uses it. Do it only when the user asks for that key, and confirm the key ID first.
+
 ## Privacy before any model
 
 Mixlayer chat completions have zero data retention by default: requests are processed in memory and discarded after inference, and are not used for training (https://docs.mixlayer.com/zero-data-retention). Do not tell users Mixlayer stores their prompts. Masking still keeps identities from the model itself and from providers with other retention rules. Mask personal data before sending it to Mixlayer, Claude, GPT, or any other model. Restore recognized placeholders locally after the response. See [privacy.md](references/privacy.md) for the full round trip and measurement.

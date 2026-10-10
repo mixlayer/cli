@@ -1,6 +1,7 @@
 mod auth;
 mod chat;
 mod doctor;
+pub mod keys;
 pub(crate) mod models;
 
 use clap::ArgMatches;
@@ -18,6 +19,10 @@ pub fn dispatch(path: &[&str], m: &ArgMatches, g: &Globals) -> Option<anyhow::Re
         ["auth", "status"] => auth::status(m, g),
         ["auth", "logout"] => auth::logout(m, g),
         ["doctor"] => doctor::run(m, g),
+        ["keys", "list"] => keys::list(m, g),
+        ["keys", "create"] => keys::create(m, g),
+        ["keys", "rotate"] => keys::rotate(m, g),
+        ["keys", "delete"] => keys::delete(m, g),
         ["models", "list"] => models::list(m, g),
         ["models", "get"] => models::get(m, g),
         ["models", "query"] => models::query(m, g),

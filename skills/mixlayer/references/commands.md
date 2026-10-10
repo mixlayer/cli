@@ -6,7 +6,7 @@ Generated from the command table by `mixlayer agent skill-ref`. Do not edit manu
 
 Preview or install the skill and MCP server for agents
 
-Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --uninstall, --yes
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --key-env, --no-cache, --no-color, --no-input, --plain, --platform, --profile, --quiet, --rate-limit, --select, --timeout, --uninstall, --yes
 
 ## `mixlayer agent skill path`
 
@@ -97,6 +97,36 @@ Flags: --agent, --checker, --compact, --confidence, --config, --csv, --db, --dry
 Search saved prompts, answers, and reasoning
 
 Flags: --agent, --compact, --config, --csv, --db, --dry-run, --home, --human-friendly, --json, --limit, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
+
+## `mixlayer keys`
+
+Create, list, rotate and delete API keys through the Platform API
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
+
+## `mixlayer keys create`
+
+Create an API key and print its secret once
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --expires-at, --home, --human-friendly, --json, --name, --no-cache, --no-color, --no-input, --org, --permissions, --plain, --profile, --quiet, --rate-limit, --save, --select, --timeout, --yes
+
+## `mixlayer keys delete`
+
+Delete an API key (asks first unless --yes)
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
+
+## `mixlayer keys list`
+
+List API keys in your organization (never shows secrets)
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
+
+## `mixlayer keys rotate`
+
+Replace a key's secret; the old secret stops working (asks first unless --yes)
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --rate-limit, --save, --select, --timeout, --yes
 
 ## `mixlayer ladder`
 

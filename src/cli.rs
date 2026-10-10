@@ -154,7 +154,7 @@ pub fn build() -> Command {
 
 fn command(c: &'static Cmd, path: &str, jini: bool) -> Command {
     let mut cmd = Command::new(c.name).about(c.short).hide(c.hidden);
-    if let Some((long, example)) = crate::help_text::lookup(path, jini) {
+    if let Some((long, example)) = crate::help_text::lookup(path, jini).or_else(|| crate::help_extra::lookup(path)) {
         if !long.is_empty() {
             cmd = cmd.long_about(long);
         }

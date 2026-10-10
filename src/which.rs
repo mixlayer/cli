@@ -43,6 +43,22 @@ pub static INDEX: &[Entry] = &[
     ),
     e("auth status", "Check whether a Mixlayer API key is configured."),
     e(
+        "keys create",
+        "Create an organization API key with chosen permissions (inference, api-read, api-write, api-admin) through the Platform API; the secret is shown once.",
+    ),
+    e(
+        "keys list",
+        "List the organization's API keys with their permissions and expiry, never their secrets.",
+    ),
+    e(
+        "keys rotate",
+        "Rotate an API key's secret; anything using the old secret stops working.",
+    ),
+    e(
+        "agent setup",
+        "Install the Mixlayer skill and MCP server into Claude Code, Codex or Cursor; --platform adds the hosted Platform MCP server for organizations, members, API keys, analytics and billing.",
+    ),
+    e(
         "shield eval",
         "Evaluate detector recall, precision, and leaks on labeled JSONL samples.",
     ),

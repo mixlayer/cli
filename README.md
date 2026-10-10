@@ -41,6 +41,7 @@ Give your agent the Mixlayer skill so it knows how to use the CLI:
 | Claude Code | `npx skills add mixlayer/cli --skill mixlayer -g -a claude-code -y` |
 | Codex, Cursor and others | `npx skills add mixlayer/cli --skill mixlayer -g -y` |
 | Any of the above, plus the MCP server | `mixlayer agent setup --agent all --yes` |
+| Also let the agent manage your account (keys, usage, billing) | `mixlayer agent setup --agent claude-code --platform --yes` |
 
 Then ask your agent something like "use mixlayer to find which customers in customers.csv will churn, with names masked".
 
@@ -256,7 +257,25 @@ Targets are `claude-code`, `codex`, `cursor`, `hermes`, `claude-desktop` or `all
 
 The MCP server gives agents typed tools for the API (`chat_create_completion`, `models_list`, `models_get`) and workflow tools for everything above: `ask`, `ladder`, `escalate`, `shield_ask`, `shield_redact`, `shield_scan`, `shield_audit`, `shield_eval`, `grep`, `sql`, `savings`, `models_query` and `doctor`. A `context` tool hands the agent the embedded skill first, so it learns to check live models, preview with `dry_run`, and route personal data through `shield_ask`.
 
-Some things stay off MCP on purpose: the vault and the shield dictionary (they hold your original private values), `vault` commands, and `agent setup`. Agents send what they read to a remote model, so those stay on your machine.
+Some things stay off MCP on purpose: the vault and the shield dictionary (they hold your original private values), `vault` commands, `agent setup` and `keys`. Agents send what they read to a remote model, so those stay on your machine.
+
+### Manage your account from your agent
+
+Mixlayer also hosts an MCP server for the Platform API at `https://api.mixlayer.com/v1/mcp`. With it, your agent can list and create API keys, check usage and spend, manage members and read invoices. Add `--platform` to setup:
+
+```sh
+mixlayer agent setup --agent claude-code --platform --yes
+```
+
+The agent authenticates with the key in `MIXLAYER_API_KEY` (or the variable you name with `--key-env`), and that key needs the `api-read` permission. If the variable is set, setup checks the key before it changes anything. The tools, the permissions and the config for each agent are in [docs/platform-mcp.md](docs/platform-mcp.md).
+
+The same key operations work from the terminal:
+
+```sh
+mixlayer keys list
+mixlayer keys create --name ci --permissions inference   # prints the new secret once
+mixlayer keys rotate <key-id> --yes
+```
 
 Agents can also discover the CLI directly:
 
@@ -274,7 +293,7 @@ To build the Claude Desktop bundle, run `scripts/mcpb.sh`.
 | --- | --- |
 | `MIXLAYER_API_KEY` | Your API key (required for API calls) |
 | `MIXLAYER_BASE_URL` | API base URL. Default `https://mixlayer.ai/v1` |
-| `MIXLAYER_PLATFORM_URL` | Platform API for live prices. Default `https://api.mixlayer.com` |
+| `MIXLAYER_PLATFORM_URL` | Platform API for `keys`, live prices and the Platform MCP server. Default `https://api.mixlayer.com` |
 | `MIXLAYER_HOME` | Put config, data, state and cache under one directory (same as `--home`) |
 | `MIXLAYER_CONFIG` | Path to the config file |
 | `MIXLAYER_NO_AGENT_DETECT` | Set to `1` to stop automatic `--agent` mode |
