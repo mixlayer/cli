@@ -57,9 +57,9 @@ fn endpoint_commands_preserve_cached_wire_output() {
     let key = format!(
         "/models|base_url={BASE}/v1|auth_source=env:MIXLAYER_API_KEY|auth={}|config_path={}",
         hex::encode(&Sha256::digest(AUTH.as_bytes())[..8]),
-        home.path().join("config/config.toml").display()
+        home.path().join("config").join("config.toml").display()
     );
-    let cache = home.path().join("cache/http");
+    let cache = home.path().join("cache").join("http");
     std::fs::create_dir_all(&cache).unwrap();
     std::fs::write(
         cache.join(format!("{}.json", hex::encode(&Sha256::digest(key.as_bytes())[..8]))),
