@@ -3,7 +3,7 @@ use crate::Globals;
 use std::io::IsTerminal;
 
 pub fn want(g: &Globals) -> bool {
-    !g.json && !g.agent && std::io::stdout().is_terminal()
+    !g.json && !g.agent && !g.csv && !g.plain && !g.quiet && std::io::stdout().is_terminal()
 }
 fn color(g: &Globals) -> bool {
     want(g) && !g.no_color && std::env::var_os("NO_COLOR").is_none()

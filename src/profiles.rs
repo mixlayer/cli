@@ -210,7 +210,7 @@ pub fn dispatch(path: &[&str], leaf: &ArgMatches, g: &Globals) -> Option<anyhow:
         }
         "list" => {
             let s = load()?;
-            if g.json {
+            if g.json || g.csv || g.plain || g.quiet {
                 let rows: Vec<_> = s
                     .profiles
                     .values()

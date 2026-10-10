@@ -46,8 +46,8 @@ fn store(m: &ArgMatches) -> Result<Store> {
 fn json_out(v: &Value, g: &Globals) -> Result<()> {
     output::print_json(v, g)
 }
-fn raw_json_out(v: &Value) -> Result<()> {
-    output::print_json(v, &Globals::default())
+fn raw_json_out(g: &Globals, v: &Value) -> Result<()> {
+    output::print_json(v, &output::formats_only(g))
 }
 fn text_out(text: &str) -> Result<()> {
     output::write_stdout(text.as_bytes())
@@ -168,15 +168,16 @@ pub fn dispatch(path: &[&str], m: &ArgMatches, g: &Globals) -> Option<Result<()>
         ["shield", "restructure"] => restructure(m),
         ["shield", "ingest"] => ingest(m, g),
         ["shield", "eval"] => eval(m, g),
-        ["shield", "audit"] => audit(m),
+        ["shield", "audit"] => audit(m, g),
         ["shield", "dict", "add"] => dict_add(m, g),
         ["shield", "dict", "list"] => dict_list(m, g),
         ["shield", "dict", "remove"] => dict_remove(m, g),
-        ["vault", "list"] => vault_list(m),
+        ["vault", "list"] => vault_list(m, g),
         ["vault", "rehydrate"] => vault_rehydrate(m),
-        ["vault", "rotate"] => {
-            raw_json_out(&json!({"rotated":false,"reason":"rotation is deferred to preserve existing audit receipts"}))
-        }
+        ["vault", "rotate"] => raw_json_out(
+            g,
+            &json!({"rotated":false,"reason":"rotation is deferred to preserve existing audit receipts"}),
+        ),
         ["vault", "purge"] => vault_purge(m, g),
         _ => return None,
     })
@@ -191,6 +192,7 @@ fn scan(m: &ArgMatches, g: &Globals) -> Result<()> {
         .map_err(|e| classify(e, g))?;
     let risk = shield::risk_score(&entities);
     raw_json_out(
+        g,
         &json!({"risk":risk,"entities":if entities.is_empty() { Value::Null } else { Value::Array(entities.iter().map(entity_json).collect()) }}),
     )?;
     let max: i32 = arg(m, "max-risk")
@@ -218,7 +220,7 @@ fn redact(m: &ArgMatches, g: &Globals) -> Result<()> {
         return write_private(path, redacted.text.as_bytes());
     }
     if bool_arg(m, "diff") || g.json || g.agent {
-        raw_json_out(&redaction_json(&redacted))
+        raw_json_out(g, &redaction_json(&redacted))
     } else {
         text_out(&redacted.text)
     }
@@ -269,11 +271,11 @@ fn ingest(m: &ArgMatches, g: &Globals) -> Result<()> {
     let mut summary = json!({"tranches":tranches.len(),"manifest":manifest,"output":out});
     if !out.is_empty() {
         write_private(out, corpus.as_bytes())?;
-        return raw_json_out(&summary);
+        return raw_json_out(g, &summary);
     }
     if g.json || g.agent {
         summary["masked_corpus"] = corpus.into();
-        raw_json_out(&summary)
+        raw_json_out(g, &summary)
     } else {
         text_out(&corpus)
     }
@@ -670,7 +672,7 @@ fn audit_json(a: &AuditRecord) -> Value {
     out
 }
 
-fn audit(m: &ArgMatches) -> Result<()> {
+fn audit(m: &ArgMatches, g: &Globals) -> Result<()> {
     let db = store(m)?;
     let id = words(m, "shield audit").first().cloned().unwrap_or_default();
     let limit = arg(m, "limit")
@@ -678,7 +680,7 @@ fn audit(m: &ArgMatches) -> Result<()> {
         .parse::<i64>()
         .map_err(|_| exit::usage("invalid --limit"))?;
     let rows = db.audit_records(&id, limit)?;
-    raw_json_out(&Value::Array(rows.iter().map(audit_json).collect()))
+    raw_json_out(g, &Value::Array(rows.iter().map(audit_json).collect()))
 }
 fn dict_add(m: &ArgMatches, g: &Globals) -> Result<()> {
     let term = required(m, "shield dict add")?;
@@ -708,9 +710,9 @@ fn dict_remove(m: &ArgMatches, g: &Globals) -> Result<()> {
     let term = required(m, "shield dict remove")?;
     json_out(&json!({"removed":store(m)?.remove_dictionary_term(&term)?}), g)
 }
-fn vault_list(m: &ArgMatches) -> Result<()> {
+fn vault_list(m: &ArgMatches, g: &Globals) -> Result<()> {
     let rows = store(m)?.vault_entries(false)?;
-    raw_json_out(
+    raw_json_out(g,
         &json!(
             rows.iter()
                 .map(|e| json!({"token":e.token,"kind":e.kind,"created_at":e.created_at.map(|t| t.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))}))
@@ -727,7 +729,7 @@ fn vault_purge(m: &ArgMatches, g: &Globals) -> Result<()> {
         return Err(exit::usage("pass --yes to purge the vault"));
     }
     store(m)?.purge_vault()?;
-    raw_json_out(&json!({"purged":true}))
+    raw_json_out(g, &json!({"purged":true}))
 }
 
 fn eval_metrics(c: EvalCounts) -> EvalMetrics {

@@ -22,13 +22,17 @@ fn globals(m: &ArgMatches) -> Globals {
     let explicit_human = flag(m, "human-friendly") == Some(true);
     let agent_mode = flag(m, "agent") == Some(true) || (agent_detected() && !explicit_human);
     let pick = |name: &str| flag(m, name).unwrap_or(agent_mode);
+    // An explicit --csv/--plain/--quiet beats the JSON that agent mode implies;
+    // an explicit --json still beats them.
+    let tabular = ["csv", "plain", "quiet"].iter().any(|f| flag(m, f) == Some(true));
+    let shaped = |name: &str| flag(m, name).unwrap_or(agent_mode && !tabular);
     Globals {
         agent: flag(m, "agent") == Some(true),
-        json: pick("json"),
+        json: shaped("json"),
         csv: flag(m, "csv") == Some(true),
         plain: flag(m, "plain") == Some(true),
         quiet: flag(m, "quiet") == Some(true),
-        compact: pick("compact"),
+        compact: shaped("compact"),
         no_input: pick("no-input"),
         no_color: pick("no-color"),
         yes: pick("yes"),

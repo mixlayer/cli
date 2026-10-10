@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `--csv`, `--plain` and `--quiet` now do what their help says on every command that prints data, including `sql`, `grep`, `savings`, `ladder`, `vault list`, `shield audit` and `profile list`: real CSV (header row, RFC 4180 quoting, nested values as JSON), tab-separated text, or one value per line. `chat --quiet` and `ask --quiet` print just the answer. An explicit format flag now beats the JSON implied by agent mode; an explicit `--json` still wins.
+
 ## v0.1.0 (2026-10-09)
 
 First public release of the Mixlayer CLI.

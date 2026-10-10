@@ -40,8 +40,10 @@ fn prompt(m: &ArgMatches, name: &str) -> anyhow::Result<String> {
 fn print(value: &Value, g: &Globals) -> anyhow::Result<()> {
     crate::output::print_json(value, g)
 }
-fn output(value: &Value) -> anyhow::Result<()> {
-    print(value, &Globals::default())
+/// Ledger JSON ignores --select/--compact (as in Go) but honours the
+/// --csv/--plain/--quiet output formats.
+fn output(g: &Globals, value: &Value) -> anyhow::Result<()> {
+    print(value, &crate::output::formats_only(g))
 }
 fn db(m: &ArgMatches) -> anyhow::Result<Store> {
     match arg(m, "db").filter(|s| !s.is_empty()) {
@@ -405,7 +407,10 @@ pub fn ladder(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     if human::want(g) {
         human::ladder(&results, &first, g);
     } else {
-        output(&json!({"results":result_array(&results),"first_confident_model":first,"catalog_source":source}))?;
+        output(
+            g,
+            &json!({"results":result_array(&results),"first_confident_model":first,"catalog_source":source}),
+        )?;
     }
     outcome(&results)
 }
@@ -536,6 +541,7 @@ pub fn escalate(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         human::escalate(&results, cost, baseline, saved, &reason, g);
     } else {
         output(
+            g,
             &json!({"group_id":group,"results":result_array(&results),"cost_usd":cost,"cost_reason":if checker=="jini" {"classification checker cost is not included in the generation catalog"} else {""},"frontier_baseline_usd":baseline,"saved_usd":saved,"baseline_reason":reason,"catalog_source":source}),
         )?;
     }
@@ -602,6 +608,7 @@ pub fn council(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         human::council(&results, &judged, g);
     } else {
         output(
+            g,
             &json!({"group_id":group,"members":result_array(&results),"judge":result_array(&judged),"catalog_source":source}),
         )?;
     }
@@ -747,7 +754,10 @@ pub fn compare(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         human::compare(&row(&a), &row(&b), delta, &note, g);
         Ok(())
     } else {
-        output(&json!({"cheap":run_json(&a),"frontier":run_json(&b),"delta_usd":delta,"quality_note":note}))
+        output(
+            g,
+            &json!({"cheap":run_json(&a),"frontier":run_json(&b),"delta_usd":delta,"quality_note":note}),
+        )
     }
 }
 fn baseline(vs: &str, tokens: i64) -> f64 {
@@ -779,6 +789,7 @@ pub fn savings(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         Ok(())
     } else {
         output(
+            g,
             &json!({"runs":runs.len()-unknown,"excluded_unknown_cost_runs":unknown,"tokens":tokens,"actual_usd":human::round(actual),"baseline_usd":human::round(base),"saved_usd":human::round(base-actual),"baseline":vs}),
         )
     }
@@ -791,8 +802,7 @@ pub fn grep(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let limit = parse_i64(m, "limit", 20)?;
     let s = db(m)?;
     let runs = s.search_runs(&query, limit)?;
-    let _ = g;
-    output(&Value::Array(runs.iter().map(run_json).collect()))
+    output(g, &Value::Array(runs.iter().map(run_json).collect()))
 }
 pub fn replay(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let run_id = words(m, "replay")
@@ -822,7 +832,10 @@ pub fn replay(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         &rows,
         &source,
     )?;
-    output(&json!({"original":run_json(&original),"replay":run_json(&new),"same_answer":original.answer==new.answer}))
+    output(
+        g,
+        &json!({"original":run_json(&original),"replay":run_json(&new),"same_answer":original.answer==new.answer}),
+    )
 }
 pub fn sql(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let query = words(m, "sql")
@@ -838,7 +851,7 @@ pub fn sql(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let rows = s
         .query_read_only(&query, blocked)
         .map_err(|e| exit::usage(e.to_string()))?;
-    output(&Value::Array(rows.into_iter().map(Value::Object).collect()))
+    output(g, &Value::Array(rows.into_iter().map(Value::Object).collect()))
 }
 
 #[cfg(test)]

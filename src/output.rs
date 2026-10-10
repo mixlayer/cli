@@ -2,7 +2,7 @@
 
 //! JSON output and Go-compatible field projections for `--select` and `--compact`.
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::Globals;
 
@@ -85,9 +85,6 @@ pub fn stdout_is_terminal() -> bool {
 
 pub fn format_output(raw: &str, g: &Globals, terminal: bool, color: bool) -> anyhow::Result<Rendered> {
     let mut out = Rendered::default();
-    if g.quiet {
-        return Ok(out);
-    }
     let parsed = serde_json::from_str::<Value>(raw).ok();
     let projected = match g.select.as_deref().filter(|s| !s.is_empty()) {
         Some(select) => select.split(',').any(|s| !s.trim().is_empty()),
@@ -99,8 +96,8 @@ pub fn format_output(raw: &str, g: &Globals, terminal: bool, color: bool) -> any
     } else {
         raw.to_owned()
     };
-    if g.csv {
-        out.stdout = csv_output(&value, &raw);
+    if let Some(text) = (!g.json).then(|| tabular(&value, g)).flatten() {
+        out.stdout = text;
     } else if g.json || !terminal {
         out.stdout = if parsed.is_some() {
             pretty(&value)?
@@ -141,53 +138,106 @@ fn escape_json_html(raw: String) -> String {
         .replace('\u{2029}', "\\u2029")
 }
 
-fn csv_output(value: &Value, raw: &str) -> String {
-    let Some(items) = value
-        .as_array()
-        .filter(|a| !a.is_empty() && a.iter().all(Value::is_object))
-    else {
-        return format!("{raw}\n");
-    };
-    let keys: std::collections::BTreeSet<_> = items.iter().flat_map(|v| v.as_object().unwrap().keys()).collect();
-    let mut out = keys.iter().map(|k| k.as_str()).collect::<Vec<_>>().join(",");
-    out.push('\n');
-    for item in items {
-        let cells: Vec<_> = keys
-            .iter()
-            .map(|key| {
-                let v = &item[*key];
-                let s = if v.is_null() { String::new() } else { go_display(v) };
-                if s.contains([',', '"', '\n']) {
-                    format!("\"{}\"", s.replace('"', "\"\""))
-                } else {
-                    s
-                }
-            })
-            .collect();
-        out.push_str(&cells.join(","));
-        out.push('\n');
+/// Envelope keys whose array holds the rows (`{"object":"list","data":[...]}`).
+const ENVELOPES: [&str; 6] = ["data", "results", "items", "nodes", "entries", "records"];
+
+/// The rows behind a response: an array of objects, an envelope holding one,
+/// or a single object as one row. `None` for scalars and mixed arrays.
+fn rows(value: &Value) -> Option<Vec<&Map<String, Value>>> {
+    fn objects(a: &[Value]) -> Option<Vec<&Map<String, Value>>> {
+        a.iter().map(Value::as_object).collect()
     }
-    out
+    match value {
+        Value::Array(a) => objects(a),
+        Value::Object(m) => ENVELOPES
+            .iter()
+            .find_map(|k| m.get(*k).and_then(Value::as_array).and_then(|a| objects(a)))
+            .or_else(|| Some(vec![m])),
+        _ => None,
+    }
 }
 
-fn go_display(v: &Value) -> String {
-    match v {
-        Value::Null => "<nil>".into(),
-        Value::String(s) => s.clone(),
-        Value::Number(n) => n.as_f64().map(|f| f.to_string()).unwrap_or_else(|| n.to_string()),
-        Value::Array(a) => format!("[{}]", a.iter().map(go_display).collect::<Vec<_>>().join(" ")),
-        Value::Object(m) => {
-            let sorted: std::collections::BTreeMap<_, _> = m.iter().collect();
-            format!(
-                "map[{}]",
-                sorted
-                    .into_iter()
-                    .map(|(k, v)| format!("{k}:{}", go_display(v)))
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            )
+/// Column order: keys as first seen, row by row.
+fn columns<'a>(rows: &[&'a Map<String, Value>]) -> Vec<&'a String> {
+    let mut cols: Vec<&String> = Vec::new();
+    for key in rows.iter().flat_map(|r| r.keys()) {
+        if !cols.contains(&key) {
+            cols.push(key);
         }
-        Value::Bool(b) => b.to_string(),
+    }
+    cols
+}
+
+/// A cell as text: strings bare, null empty, nested values as compact JSON.
+fn cell(v: &Value) -> String {
+    match v {
+        Value::Null => String::new(),
+        Value::String(s) => s.clone(),
+        other => other.to_string(),
+    }
+}
+
+/// `--csv`, `--plain` and `--quiet` renderings; `None` when none is set.
+fn tabular(value: &Value, g: &Globals) -> Option<String> {
+    if !(g.csv || g.plain || g.quiet) {
+        return None;
+    }
+    // A chat completion's one useful value is the reply text.
+    if g.quiet
+        && !g.csv
+        && !g.plain
+        && let Some(Value::String(reply)) = value.pointer("/choices/0/message/content")
+    {
+        return Some(format!("{reply}\n"));
+    }
+    let Some(rows) = rows(value) else {
+        // Scalars print as themselves in every mode.
+        return Some(match value {
+            Value::Null => String::new(),
+            v => format!("{}\n", cell(v)),
+        });
+    };
+    let cols = columns(&rows);
+    let mut out = String::new();
+    if g.csv || g.plain {
+        let line = |cells: Vec<String>| -> String {
+            let cells: Vec<String> = if g.csv {
+                cells.into_iter().map(|c| csv_escape(&c)).collect()
+            } else {
+                cells.into_iter().map(|c| c.replace(['\t', '\n', '\r'], " ")).collect()
+            };
+            cells.join(if g.csv { "," } else { "\t" }) + "\n"
+        };
+        if !rows.is_empty() {
+            out.push_str(&line(cols.iter().map(|c| c.to_string()).collect()));
+        }
+        for row in &rows {
+            out.push_str(&line(
+                cols.iter().map(|c| row.get(*c).map(cell).unwrap_or_default()).collect(),
+            ));
+        }
+    } else {
+        // Quiet: one identifying value per row.
+        let key = ["id", "name", "token", "answer", "content"]
+            .into_iter()
+            .find(|k| cols.iter().any(|c| c.as_str() == *k))
+            .or_else(|| cols.first().map(|c| c.as_str()));
+        for row in &rows {
+            if let Some(v) = key.and_then(|k| row.get(k)) {
+                out.push_str(&cell(v).replace(['\n', '\r'], " "));
+                out.push('\n');
+            }
+        }
+    }
+    Some(out)
+}
+
+/// RFC 4180 quoting.
+fn csv_escape(s: &str) -> String {
+    if s.contains([',', '"', '\n', '\r']) || s.starts_with(' ') || s.ends_with(' ') {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_owned()
     }
 }
 
@@ -219,8 +269,22 @@ pub fn quiet_broken_pipe() {
     }));
 }
 
+/// Only the output-format flags, for commands whose JSON ignores --select/--compact.
+pub fn formats_only(g: &Globals) -> Globals {
+    Globals {
+        json: g.json,
+        csv: g.csv,
+        plain: g.plain,
+        quiet: g.quiet,
+        ..Default::default()
+    }
+}
+
 pub fn print_json(v: &Value, g: &Globals) -> anyhow::Result<()> {
     let v = filtered(v.clone(), g);
+    if let Some(text) = (!g.json).then(|| tabular(&v, g)).flatten() {
+        return write_stdout(text.as_bytes());
+    }
     let mut s = serde_json::to_string_pretty(&v)?;
     s.push('\n');
     write_stdout(s.as_bytes())

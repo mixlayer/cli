@@ -463,6 +463,30 @@ fn local_ledger_search_replay_savings_and_sql() {
         ],
     );
     assert_eq!(private.status.code(), Some(2));
+    // Ledger commands honour the output formats (Go printed JSON for all three).
+    let d = db.to_str().unwrap();
+    let text = |args: &[&str]| {
+        let out = cli(home.path(), base, args);
+        assert!(out.status.success(), "{args:?}");
+        String::from_utf8(out.stdout).unwrap()
+    };
+    let q = "select id, prompt, cost_usd from runs";
+    assert_eq!(
+        text(&["sql", q, "--db", d, "--csv"]),
+        "id,prompt,cost_usd\nrun_fixture,migration plan,0.003\n"
+    );
+    assert_eq!(
+        text(&["sql", q, "--db", d, "--plain"]),
+        "id\tprompt\tcost_usd\nrun_fixture\tmigration plan\t0.003\n"
+    );
+    assert_eq!(text(&["grep", "migration", "--db", d, "--quiet"]), "run_fixture\n");
+    // An explicit format beats agent mode; an explicit --json beats the format.
+    assert!(text(&["sql", q, "--db", d, "--agent", "--csv"]).starts_with("id,prompt,cost_usd\n"));
+    assert_eq!(
+        value(&cli(home.path(), base, &["sql", q, "--db", d, "--csv", "--json"]))[0]["id"],
+        "run_fixture"
+    );
+    assert!(text(&["savings", "--db", d, "--csv"]).starts_with("runs,excluded_unknown_cost_runs,tokens,"));
 }
 #[test]
 fn model_refresh_and_live_catalog_cache_survive_separate_cli_runs() {
@@ -529,13 +553,17 @@ fn chat_machine_flags_work_with_valid_messages() {
     quiet.push("--quiet");
     let out = cli(home.path(), &server.url, &quiet);
     assert!(out.status.success());
-    assert!(out.stdout.is_empty() && out.stderr.is_empty());
+    // --quiet prints just the reply text.
+    let reply = String::from_utf8(out.stdout).unwrap();
+    assert!(!reply.trim().is_empty() && !reply.contains('{'), "{reply}");
+    assert!(out.stderr.is_empty());
     let mut csv = args.to_vec();
     csv.push("--csv");
     let out = cli(home.path(), &server.url, &csv);
     assert!(out.status.success());
-    assert!(value(&out)["choices"].is_array());
-    assert!(value(&out).get("meta").is_none());
+    let csv = String::from_utf8(out.stdout).unwrap();
+    assert_eq!(csv.lines().count(), 2, "header plus one row: {csv}");
+    assert!(csv.lines().next().unwrap().split(',').any(|c| c == "choices"), "{csv}");
 }
 
 #[test]

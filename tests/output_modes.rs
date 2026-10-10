@@ -25,12 +25,13 @@ fn cli(home: &Path, args: &[&str]) -> Output {
         .unwrap()
 }
 
+/// Go's recorded output, unless Rust deliberately differs (see
+/// parity/fixtures/rust-output/README.md).
 fn fixture(case: usize) -> String {
-    std::fs::read_to_string(format!(
-        "{}/parity/fixtures/go-output/expected/{case}.out",
-        env!("CARGO_MANIFEST_DIR")
-    ))
-    .unwrap()
+    let root = env!("CARGO_MANIFEST_DIR");
+    std::fs::read_to_string(format!("{root}/parity/fixtures/rust-output/{case}.out"))
+        .or_else(|_| std::fs::read_to_string(format!("{root}/parity/fixtures/go-output/expected/{case}.out")))
+        .unwrap()
 }
 
 fn assert_case(output: Output, case: usize) {
@@ -81,19 +82,22 @@ fn endpoint_commands_preserve_cached_wire_output() {
     for (i, args) in cases.iter().enumerate() {
         assert_case(cli(home.path(), args), i + 1);
     }
+    // An explicit format flag beats agent mode's implied JSON; explicit --json beats both.
     let agent = cli(home.path(), &["models", "list", "--agent", "--quiet"]);
     assert!(agent.status.success());
+    assert_eq!(String::from_utf8(agent.stdout).unwrap(), "fake/model\n");
+    let json = cli(home.path(), &["models", "list", "--agent", "--quiet", "--json"]);
     assert_eq!(
-        serde_json::from_slice::<Value>(&agent.stdout).unwrap()["meta"]["source"],
+        serde_json::from_slice::<Value>(&json.stdout).unwrap()["meta"]["source"],
         "live"
     );
     let explicit = cli(home.path(), &["models", "list", "--agent", "--json=false", "--quiet"]);
     assert!(explicit.status.success());
-    assert!(explicit.stdout.is_empty());
+    assert_eq!(String::from_utf8(explicit.stdout).unwrap(), "fake/model\n");
 }
 
 #[test]
-fn profile_table_flags_match_recorded_quirks() {
+fn profile_list_honours_output_formats() {
     let home = tempfile::tempdir().unwrap();
     assert!(
         cli(home.path(), &["profile", "save", "p", "--json", "--description", "d"])
