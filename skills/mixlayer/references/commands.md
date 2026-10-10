@@ -32,6 +32,12 @@ Ask Mixlayer and save the prompt, answer, and reasoning locally
 
 Flags: --agent, --compact, --config, --csv, --db, --dry-run, --home, --human-friendly, --json, --model, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --seed, --select, --show-thinking, --timeout, --yes
 
+## `mixlayer audit`
+
+List or follow organization audit events
+
+Flags: --action, --actor, --agent, --compact, --config, --csv, --dry-run, --follow, --home, --human-friendly, --interval, --json, --limit, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --rate-limit, --resource-type, --select, --since, --timeout, --yes
+
 ## `mixlayer auth`
 
 Manage authentication for Mixlayer
@@ -61,6 +67,24 @@ Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly,
 Show authentication status
 
 Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
+
+## `mixlayer budget`
+
+Show or set monthly spending controls
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
+
+## `mixlayer budget set`
+
+Change monthly spend controls (requires --yes)
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --low-balance-warning, --monthly-limit, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --warn-at, --yes
+
+## `mixlayer budget show`
+
+Show spending controls and prepaid balance
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
 
 ## `mixlayer chat`
 
@@ -100,7 +124,7 @@ Flags: --agent, --compact, --config, --csv, --db, --dry-run, --home, --human-fri
 
 ## `mixlayer keys`
 
-Create, list, rotate and delete API keys through the Platform API
+Create, list, mint, rotate and delete API keys through the Platform API
 
 Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
 
@@ -121,6 +145,12 @@ Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly,
 List API keys in your organization (never shows secrets)
 
 Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
+
+## `mixlayer keys mint`
+
+Run a command with a short-lived API key, then delete it
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --key-env, --name, --no-cache, --no-color, --no-input, --org, --permissions, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --ttl, --yes
 
 ## `mixlayer keys rotate`
 
@@ -278,6 +308,12 @@ Detect PII locally without an upstream call
 
 Flags: --agent, --compact, --config, --csv, --db, --detector, --detector-base-url, --detector-fallback, --detector-key-env, --detector-timeout, --dry-run, --home, --human-friendly, --json, --max-risk, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
 
+## `mixlayer spend`
+
+Show usage spend and optionally gate on a dollar amount
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --fail-over, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --range, --rate-limit, --select, --timeout, --yes
+
 ## `mixlayer sql`
 
 Run read-only SQL against the local reasoning ledger
@@ -325,3 +361,9 @@ Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly,
 Find the command that implements a capability
 
 Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --limit, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
+
+## `mixlayer whoami`
+
+Show this key's identity and Platform permissions
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --org, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes

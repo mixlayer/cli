@@ -85,6 +85,14 @@ Check the install:
 mixlayer version
 ```
 
+For tab completion, add the script for your shell (`bash`, `zsh`, `fish` or `powershell`), for example:
+
+```sh
+mixlayer completion zsh > "${fpath[1]}/_mixlayer"
+```
+
+Every command and subcommand is listed in the [command reference](skills/mixlayer/references/commands.md), which is generated from the CLI itself. Add `--help` to any command for the details.
+
 ## Get started
 
 1. Create an API key in the [Mixlayer console](https://console.mixlayer.com/app/api-keys). `mixlayer auth setup --launch` opens that page for you.
@@ -278,6 +286,18 @@ mixlayer keys list
 mixlayer keys create --name ci --permissions inference   # prints the new secret once
 mixlayer keys rotate <key-id> --yes
 ```
+
+### Your account from the terminal
+
+```sh
+mixlayer whoami --agent                                  # key source, organization and permissions
+mixlayer keys mint --ttl 30m -- mixlayer models list      # give one job a temporary key
+mixlayer spend --range current --fail-over 5 --agent     # exit 9 when gross usage exceeds $5
+mixlayer budget set --monthly-limit 25 --warn-at 20 --yes
+mixlayer audit --since 24h --follow
+```
+
+Minted keys expire on the server and are deleted when the job ends. Inference may keep accepting a deleted key for up to a minute while the gateway cache refreshes. `budget set` limits are monthly; reaching the limit pauses paid model traffic until it resets or is raised.
 
 Agents can also discover the CLI directly:
 

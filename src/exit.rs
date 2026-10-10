@@ -48,6 +48,25 @@ pub struct CliError {
     pub message: String,
 }
 
+/// Exit status from a child command run by `keys mint`.
+#[derive(Debug)]
+pub struct ChildExit(pub u8);
+
+impl fmt::Display for ChildExit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "child exited with status {}", self.0)
+    }
+}
+
+impl std::error::Error for ChildExit {}
+
+pub fn status_of(e: &anyhow::Error) -> u8 {
+    e.chain()
+        .find_map(|c| c.downcast_ref::<ChildExit>())
+        .map(|e| e.0)
+        .unwrap_or(code_of(e) as u8)
+}
+
 impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.message)

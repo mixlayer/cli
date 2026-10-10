@@ -181,6 +181,9 @@ fn command(c: &'static Cmd, path: &str, jini: bool) -> Command {
         } else {
             arg.required(false)
         };
+        if path == "keys mint" {
+            arg = arg.last(true).allow_hyphen_values(true);
+        }
         cmd = cmd.arg(arg);
     }
     if c.subcommands.is_empty() && !positionals.iter().any(|p| p.variadic) {

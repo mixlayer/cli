@@ -55,6 +55,17 @@ pub static INDEX: &[Entry] = &[
         "Rotate an API key's secret; anything using the old secret stops working.",
     ),
     e(
+        "keys mint",
+        "Run one job with a short-lived API key and delete the key afterward.",
+    ),
+    e("whoami", "Show my API key ID, source, organization and permissions."),
+    e(
+        "spend",
+        "Check usage spend and gate a script when spending exceeds a dollar amount.",
+    ),
+    e("budget", "Show the monthly spending limit, or change spend controls."),
+    e("audit", "List or follow the organization audit log of account changes."),
+    e(
         "agent setup",
         "Install the Mixlayer skill and MCP server into Claude Code, Codex or Cursor; --platform adds the hosted Platform MCP server for organizations, members, API keys, analytics and billing.",
     ),

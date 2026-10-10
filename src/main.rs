@@ -71,14 +71,16 @@ fn main() -> ExitCode {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Error: {e:#}");
-            return ExitCode::from(exit::code_of(&e) as u8);
+            return ExitCode::from(exit::status_of(&e));
         }
     };
     match run(&matches) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("Error: {e:#}");
-            ExitCode::from(exit::code_of(&e) as u8)
+            if e.downcast_ref::<exit::ChildExit>().is_none() {
+                eprintln!("Error: {e:#}");
+            }
+            ExitCode::from(exit::status_of(&e))
         }
     }
 }

@@ -717,9 +717,20 @@ mod tests {
     #[test]
     fn mirror_surface_has_no_private_commands() {
         let server = MixlayerServer::new();
-        assert_eq!(server.tools.len(), 19);
-        for name in ["vault", "shield_dict", "agent_setup", "agent_skill_print"] {
+        assert_eq!(server.tools.len(), 21);
+        for name in [
+            "vault",
+            "shield_dict",
+            "agent_setup",
+            "agent_skill_print",
+            "keys",
+            "budget",
+            "audit",
+        ] {
             assert!(!server.tools.iter().any(|t| t.name == name));
+        }
+        for name in ["whoami", "spend"] {
+            assert!(server.tools.iter().any(|t| t.name == name));
         }
     }
 
