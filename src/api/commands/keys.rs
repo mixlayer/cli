@@ -208,22 +208,25 @@ pub fn mint(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         eprintln!("Could not delete API key {id} (expires {expires}); retry: mixlayer keys delete {id} --yes");
     }
     let status = result.map_err(|e| exit::err(Code::Other, format!("running {}: {e}", command[0])))?;
-    let child_code = status.code().unwrap_or_else(|| {
-        #[cfg(unix)]
-        {
-            use std::os::unix::process::ExitStatusExt;
-            128 + status.signal().unwrap_or(1)
-        }
-        #[cfg(not(unix))]
-        {
-            1
-        }
-    });
+    let child_code = status.code().unwrap_or_else(|| signal_exit_code(&status));
     if child_code != 0 {
         return Err(exit::ChildExit(child_code.clamp(1, 255) as u8).into());
     }
     deletion.map_err(|e| exit::err(Code::Api, format!("deleting minted API key {id}: {e}")))?;
     Ok(())
+}
+
+/// Shell convention for a child killed by a signal: 128 + the signal number.
+#[cfg(unix)]
+fn signal_exit_code(status: &std::process::ExitStatus) -> i32 {
+    use std::os::unix::process::ExitStatusExt;
+    128 + status.signal().unwrap_or(1)
+}
+
+/// Windows always reports an exit code; this is only a fallback.
+#[cfg(not(unix))]
+fn signal_exit_code(_: &std::process::ExitStatus) -> i32 {
+    1
 }
 
 #[cfg(unix)]
