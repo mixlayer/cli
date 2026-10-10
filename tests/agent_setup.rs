@@ -259,3 +259,161 @@ fn setup_requires_true_explicit_yes() {
         assert_eq!(fs::read_dir(home.path()).unwrap().count(), 0);
     }
 }
+
+fn copy_tree(from: &Path, to: &Path) {
+    fs::create_dir_all(to).unwrap();
+    for item in fs::read_dir(from).unwrap() {
+        let item = item.unwrap();
+        let target = to.join(item.file_name());
+        if item.file_type().unwrap().is_dir() {
+            copy_tree(&item.path(), &target);
+        } else {
+            fs::copy(item.path(), target).unwrap();
+        }
+    }
+}
+
+fn skill_status(report: &Value) -> &str {
+    report["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["kind"] == "skill")
+        .and_then(|a| a["status"].as_str())
+        .unwrap()
+}
+
+fn doctor(home: &Path) -> Value {
+    let output = Command::new(env!("CARGO_BIN_EXE_mixlayer"))
+        .args(["doctor", "--json", "--timeout", "40ms"])
+        .env("HOME", home)
+        .env("USERPROFILE", home)
+        .env("MIXLAYER_BASE_URL", "http://127.0.0.1:9")
+        .env_remove("MIXLAYER_API_KEY")
+        .env("MIXLAYER_NO_AGENT_DETECT", "1")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+fn current_skill() -> String {
+    fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("skills/mixlayer/SKILL.md")).unwrap()
+}
+
+/// A skill installed by v0.1.0 (before setup recorded hashes) is updated when
+/// the user reruns setup after upgrading, and doctor flags it until then.
+#[test]
+fn upgrade_from_v0_1_0_updates_the_installed_skill() {
+    let home = tempfile::tempdir().unwrap();
+    let binaries = tempfile::tempdir().unwrap();
+    let mcp = binaries.path().join("mixlayer-mcp");
+    executable(&mcp, "#!/bin/sh\nexit 0\n");
+    let skill = skill_path(home.path(), "codex").unwrap();
+    copy_tree(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/skill-v0.1.0"),
+        &skill,
+    );
+    let state = home.path().join(".config/mixlayer/agent-setup.json");
+    fs::create_dir_all(state.parent().unwrap()).unwrap();
+    fs::write(&state, "{\"codex\":{\"skill_installed\":true}}\n").unwrap();
+
+    let before = doctor(home.path());
+    assert_eq!(before["agent_skills"][0]["status"], "outdated", "{before}");
+    assert!(
+        before["agent_skills_hint"]
+            .as_str()
+            .unwrap()
+            .contains("agent setup --yes")
+    );
+
+    let preview = setup(home.path(), &mcp, "codex", false, false, None).unwrap();
+    assert_eq!(skill_status(&preview), "would_update");
+    let updated = setup(home.path(), &mcp, "codex", true, false, None).unwrap();
+    assert_eq!(skill_status(&updated), "updated", "{updated}");
+    assert_eq!(fs::read_to_string(skill.join("SKILL.md")).unwrap(), current_skill());
+    assert!(!home.path().join(".codex/skills/mixlayer.updating").exists());
+
+    let after = doctor(home.path());
+    assert_eq!(after["agent_skills"][0]["status"], "current", "{after}");
+    assert!(after.get("agent_skills_hint").is_none());
+    let again = setup(home.path(), &mcp, "codex", true, false, None).unwrap();
+    assert_eq!(skill_status(&again), "unchanged");
+    // Uninstall still removes the managed skill.
+    let removed = setup(home.path(), &mcp, "codex", true, true, None).unwrap();
+    assert_eq!(skill_status(&removed), "removed");
+    assert!(!skill.exists());
+}
+
+/// A skill installed by a later version is tracked by its recorded hash: an
+/// unedited older copy is updated, and so is uninstalling it.
+#[test]
+fn recorded_hash_lets_setup_update_and_remove_an_older_copy() {
+    let home = tempfile::tempdir().unwrap();
+    let binaries = tempfile::tempdir().unwrap();
+    let mcp = binaries.path().join("mixlayer-mcp");
+    executable(&mcp, "#!/bin/sh\nexit 0\n");
+    setup(home.path(), &mcp, "cursor", true, false, None).unwrap();
+    let state_path = home.path().join(".config/mixlayer/agent-setup.json");
+    let state: Value = serde_json::from_slice(&fs::read(&state_path).unwrap()).unwrap();
+    let recorded = state["cursor"]["skill_hash"].as_str().unwrap().to_owned();
+    assert_eq!(recorded.len(), 64);
+
+    // Pretend a future release ships a different skill: the installed copy is
+    // now "older" but still matches the recorded hash.
+    let skill = skill_path(home.path(), "cursor").unwrap();
+    fs::remove_dir_all(&skill).unwrap();
+    copy_tree(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/skill-v0.1.0"),
+        &skill,
+    );
+    let mut state = state;
+    state["cursor"]["skill_hash"] = Value::String(v0_1_0_hash());
+    fs::write(&state_path, serde_json::to_vec(&state).unwrap()).unwrap();
+    let updated = setup(home.path(), &mcp, "cursor", true, false, None).unwrap();
+    assert_eq!(skill_status(&updated), "updated", "{updated}");
+    assert_eq!(fs::read_to_string(skill.join("SKILL.md")).unwrap(), current_skill());
+    let state: Value = serde_json::from_slice(&fs::read(&state_path).unwrap()).unwrap();
+    assert_eq!(state["cursor"]["skill_hash"], recorded.as_str());
+}
+
+/// A skill the user edited is never overwritten or removed.
+#[test]
+fn edited_skill_is_left_alone() {
+    let home = tempfile::tempdir().unwrap();
+    let binaries = tempfile::tempdir().unwrap();
+    let mcp = binaries.path().join("mixlayer-mcp");
+    executable(&mcp, "#!/bin/sh\nexit 0\n");
+    setup(home.path(), &mcp, "codex", true, false, None).unwrap();
+    let skill = skill_path(home.path(), "codex").unwrap();
+    let edited = format!("{}\n## My team's notes\n", current_skill());
+    fs::write(skill.join("SKILL.md"), &edited).unwrap();
+
+    let report = setup(home.path(), &mcp, "codex", true, false, None).unwrap();
+    assert_eq!(skill_status(&report), "modified_skip");
+    assert_eq!(fs::read_to_string(skill.join("SKILL.md")).unwrap(), edited);
+    assert_eq!(doctor(home.path())["agent_skills"][0]["status"], "modified");
+    let removed = setup(home.path(), &mcp, "codex", true, true, None).unwrap();
+    assert_eq!(skill_status(&removed), "modified_skip");
+    assert_eq!(fs::read_to_string(skill.join("SKILL.md")).unwrap(), edited);
+}
+
+/// Doctor says nothing about skills when setup never ran.
+#[test]
+fn doctor_omits_skills_without_setup() {
+    let home = tempfile::tempdir().unwrap();
+    assert!(doctor(home.path()).get("agent_skills").is_none());
+}
+
+fn v0_1_0_hash() -> String {
+    use sha2::{Digest, Sha256};
+    let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/skill-v0.1.0");
+    let mut h = Sha256::new();
+    for rel in ["SKILL.md", "references/commands.md", "references/privacy.md"] {
+        h.update(rel.as_bytes());
+        h.update([0]);
+        h.update(fs::read(base.join(rel)).unwrap());
+        h.update([0]);
+    }
+    hex::encode(h.finalize())
+}

@@ -255,6 +255,8 @@ mixlayer agent setup --agent all --uninstall --yes
 
 Targets are `claude-code`, `codex`, `cursor`, `hermes`, `claude-desktop` or `all`. Setup backs up files it edits and never writes your API key into agent config; keep `MIXLAYER_API_KEY` in the environment the agent runs in.
 
+After you upgrade the CLI, run `mixlayer agent setup --agent all --yes` again so your agents get the new skill. Setup updates any skill it installed that you haven't edited, and leaves edited copies alone. `mixlayer doctor` lists each installed skill as `current`, `outdated` or `modified`. The MCP server needs no update step: its tools come from the binary you just installed.
+
 The MCP server gives agents typed tools for the API (`chat_create_completion`, `models_list`, `models_get`) and workflow tools for everything above: `ask`, `ladder`, `escalate`, `shield_ask`, `shield_redact`, `shield_scan`, `shield_audit`, `shield_eval`, `grep`, `sql`, `savings`, `models_query` and `doctor`. A `context` tool hands the agent the embedded skill first, so it learns to check live models, preview with `dry_run`, and route personal data through `shield_ask`.
 
 Some things stay off MCP on purpose: the vault and the shield dictionary (they hold your original private values), `vault` commands, `agent setup` and `keys`. Agents send what they read to a remote model, so those stay on your machine.

@@ -8,7 +8,7 @@ description: Use Mixlayer models and OpenAI-compatible calls; compare models, or
 - Authenticate through `MIXLAYER_API_KEY` in the environment. Never put a key on the command line or in an agent config.
 - Use `--agent` for noninteractive JSON and `--select` to limit fields. Inspect `--dry-run` before any command that sends data or spends credits.
 - Read available models and current prices with `mixlayer models list --live-prices --agent`; choose from that result. Never hard-code a model ID.
-- Check setup with `mixlayer doctor --json`; use `mixlayer which "capability" --json` to find commands.
+- Check setup with `mixlayer doctor --json`; use `mixlayer which "capability" --json` to find commands. If doctor lists an `agent_skills` entry as `outdated`, this skill is older than the installed CLI: ask the user to run `mixlayer agent setup --yes`, since it edits their agent config.
 - Use `mixlayer ladder "question" --agent --dry-run` to compare answers, reasoning, latency, and cost across models. Use `mixlayer escalate "question" --agent --dry-run` when a cheap answer may be sufficient and a stronger model should be called only if needed.
 
 ## Organization and API keys
