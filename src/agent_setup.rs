@@ -51,6 +51,10 @@ struct Entry {
     skill_installed: bool,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     skill_backup: String,
+    /// `skill_tree_hash` of the copy setup last wrote, so a later setup can
+    /// tell an older Mixlayer skill (safe to update) from one the user edited.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    skill_hash: String,
     #[serde(default, skip_serializing_if = "is_false")]
     mcp_installed: bool,
     #[serde(default, skip_serializing_if = "is_false")]
@@ -371,6 +375,127 @@ fn skill_matches(path: &Path) -> Result<bool> {
     visit(path, path, &expected)
 }
 
+/// Skill trees shipped before setup recorded `skill_hash`, as computed by
+/// `skill_tree_hash`. An install from one of those versions is updated like
+/// any other unmodified install. Frozen: newer versions are tracked through
+/// the recorded hash, so this list never needs to grow.
+const LEGACY_SKILL_HASHES: &[&str] = &[
+    "3f89af32ad4fab70c84af5891c4ffc01c16d38215243f194df4d043c98359a7c",
+    "9e1fb25ea91c8b5397a62e05438b15e9ce23d0a7f9c194a5ec7a60ed877fa473",
+    "f2d2fbcc9c097023f01565e43b43f89b77dd2cae557a37ff792d594c98cca5c6",
+    "1d3e4996a5bd7fc5420e852aadfecf55069a3cb4ed258b4831c57415e529a027", // v0.1.0
+];
+
+/// SHA-256 over every file in a skill directory: sorted `/`-separated relative
+/// paths, each followed by NUL, the bytes and NUL. `None` if the tree holds
+/// anything other than regular files and directories.
+fn skill_tree_hash(path: &Path) -> Result<Option<String>> {
+    fn visit(dir: &Path, base: &Path, out: &mut Vec<(String, Vec<u8>)>) -> Result<bool> {
+        for item in fs::read_dir(dir)? {
+            let entry = item?;
+            let p = entry.path();
+            let kind = entry.file_type()?;
+            if kind.is_dir() {
+                if !visit(&p, base, out)? {
+                    return Ok(false);
+                }
+            } else if kind.is_file() {
+                let rel = p
+                    .strip_prefix(base)?
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join("/");
+                out.push((rel, fs::read(&p)?));
+            } else {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+    if !fs::symlink_metadata(path).is_ok_and(|m| m.is_dir()) {
+        return Ok(None);
+    }
+    let mut files = Vec::new();
+    if !visit(path, path, &mut files)? {
+        return Ok(None);
+    }
+    files.sort();
+    let mut h = Sha256::new();
+    for (rel, data) in files {
+        h.update(rel.as_bytes());
+        h.update([0]);
+        h.update(&data);
+        h.update([0]);
+    }
+    Ok(Some(hex::encode(h.finalize())))
+}
+
+/// Hash of the skill this binary embeds, as `install_skill` writes it.
+fn embedded_skill_hash() -> String {
+    let mut files: Vec<(&str, &str)> = crate::skill::files().to_vec();
+    files.sort();
+    let mut h = Sha256::new();
+    for (rel, text) in files {
+        h.update(rel.as_bytes());
+        h.update([0]);
+        h.update(text.as_bytes());
+        h.update([0]);
+    }
+    hex::encode(h.finalize())
+}
+
+/// True when a managed skill on disk is exactly what some Mixlayer version
+/// installed: the hash setup recorded, or a pre-tracking release.
+fn skill_is_pristine(path: &Path, rec: &Entry) -> Result<bool> {
+    let Some(hash) = skill_tree_hash(path)? else {
+        return Ok(false);
+    };
+    Ok(if rec.skill_hash.is_empty() {
+        LEGACY_SKILL_HASHES.contains(&hash.as_str())
+    } else {
+        hash == rec.skill_hash
+    })
+}
+
+/// State of each skill `agent setup` manages, for `doctor`: `current`,
+/// `outdated` (an older Mixlayer version; rerun setup), `modified` (edited by
+/// the user; setup leaves it alone) or `deleted`. Empty when setup never ran.
+/// (Not "missing": `doctor --fail-on` treats that word as an error.)
+pub fn managed_skill_report() -> Vec<Value> {
+    let Ok(home) = home() else {
+        return Vec::new();
+    };
+    let state_path = home.join(".config/mixlayer/agent-setup.json");
+    let Ok(bytes) = fs::read(&state_path) else {
+        return Vec::new();
+    };
+    let Ok(state) = serde_json::from_slice::<BTreeMap<String, Entry>>(&bytes) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for agent in ORDER {
+        let Some(rec) = state.get(*agent).filter(|r| r.skill_installed) else {
+            continue;
+        };
+        let Some(rel) = skill_location(agent) else {
+            continue;
+        };
+        let path = rel.split('/').fold(home.clone(), |p, part| p.join(part));
+        let status = if !fs::symlink_metadata(&path).is_ok() {
+            "deleted"
+        } else if skill_matches(&path).unwrap_or(false) {
+            "current"
+        } else if skill_is_pristine(&path, rec).unwrap_or(false) {
+            "outdated"
+        } else {
+            "modified"
+        };
+        out.push(json!({"agent": agent, "path": path.display().to_string(), "status": status}));
+    }
+    out
+}
+
 fn skill_action(report: &mut Report, agent: &str, path: &Path, rec: &mut Entry, opts: &Options) -> Result<bool> {
     let exists = fs::symlink_metadata(path).is_ok();
     if opts.uninstall {
@@ -378,7 +503,7 @@ fn skill_action(report: &mut Report, agent: &str, path: &Path, rec: &mut Entry, 
             action(report, agent, "skill", Some(path), "not_managed", None, None);
             return Ok(false);
         }
-        if exists && !skill_matches(path)? {
+        if exists && !skill_matches(path)? && !skill_is_pristine(path, rec)? {
             action(report, agent, "skill", Some(path), "modified_skip", None, None);
             return Ok(false);
         }
@@ -402,17 +527,55 @@ fn skill_action(report: &mut Report, agent: &str, path: &Path, rec: &mut Entry, 
         }
         rec.skill_installed = false;
         rec.skill_backup.clear();
+        rec.skill_hash.clear();
         action(report, agent, "skill", Some(path), "removed", None, None);
         return Ok(true);
     }
     if exists {
         if skill_matches(path)? {
             action(report, agent, "skill", Some(path), "unchanged", None, None);
+            // Record the hash for installs made before setup tracked it, so
+            // the next upgrade can update this copy.
+            if rec.skill_installed && rec.skill_hash.is_empty() && !opts.dry_run {
+                rec.skill_hash = embedded_skill_hash();
+                return Ok(true);
+            }
             return Ok(false);
         }
         if rec.skill_installed {
-            action(report, agent, "skill", Some(path), "modified_skip", None, None);
-            return Ok(false);
+            if !skill_is_pristine(path, rec)? {
+                action(
+                    report,
+                    agent,
+                    "skill",
+                    Some(path),
+                    "modified_skip",
+                    Some(
+                        "the installed skill was edited; remove it or merge the new version by hand (see `mixlayer agent skill path`)",
+                    ),
+                    None,
+                );
+                return Ok(false);
+            }
+            if opts.dry_run {
+                action(report, agent, "skill", Some(path), "would_update", None, None);
+                return Ok(false);
+            }
+            // An older, unedited Mixlayer skill: replace it with this version.
+            let old = PathBuf::from(format!("{}.updating", path.display()));
+            if fs::symlink_metadata(&old).is_ok() {
+                fs::remove_dir_all(&old)?;
+            }
+            fs::rename(path, &old)?;
+            if let Err(error) = install_skill(path) {
+                let _ = fs::remove_dir_all(path);
+                let _ = fs::rename(&old, path);
+                return Err(error);
+            }
+            fs::remove_dir_all(&old)?;
+            rec.skill_hash = embedded_skill_hash();
+            action(report, agent, "skill", Some(path), "updated", None, None);
+            return Ok(true);
         }
     }
     if opts.dry_run {
@@ -441,6 +604,7 @@ fn skill_action(report: &mut Report, agent: &str, path: &Path, rec: &mut Entry, 
         return Err(error);
     }
     rec.skill_installed = true;
+    rec.skill_hash = embedded_skill_hash();
     action(report, agent, "skill", Some(path), "installed", None, None);
     Ok(true)
 }

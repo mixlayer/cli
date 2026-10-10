@@ -148,6 +148,14 @@ pub fn run(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     } else {
         json!({"status": "unknown", "db_path": db, "hint": "Local ledger not created yet; it is created on the first ask, ladder or shield run."})
     };
+    let skills = crate::agent_setup::managed_skill_report();
+    if !skills.is_empty() {
+        if skills.iter().any(|s| s["status"] == "outdated") {
+            report["agent_skills_hint"] =
+                "An agent has an older Mixlayer skill than this CLI. Update it with: mixlayer agent setup --yes".into();
+        }
+        report["agent_skills"] = Value::Array(skills);
+    }
     if g.json {
         print(&report, g)?;
     } else {
@@ -178,6 +186,18 @@ pub fn run(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
             if let Some(value) = report["paths"][kind]["dir"].as_str() {
                 println!("  {kind}: {value}");
             }
+        }
+        if let Some(skills) = report["agent_skills"].as_array() {
+            for s in skills {
+                println!(
+                    "  skill ({}): {}",
+                    s["agent"].as_str().unwrap_or(""),
+                    s["status"].as_str().unwrap_or("")
+                );
+            }
+        }
+        if let Some(hint) = report["agent_skills_hint"].as_str() {
+            println!("  {hint}");
         }
     }
     if let Some(gate) = arg(m, "fail-on").filter(|s| !s.is_empty()) {
