@@ -30,7 +30,11 @@ fn all_paths() -> Vec<(String, bool)> {
 fn help_table_entries_are_real_commands() {
     let mut known: Vec<String> = all_paths().into_iter().map(|(p, _)| p).collect();
     known.push("agent-context".into()); // built outside the command table
-    for (p, _, _) in mixlayer::help_text::HELP.iter().chain(mixlayer::help_text::HELP_JINI) {
+    for (p, _, _) in mixlayer::help_text::HELP
+        .iter()
+        .chain(mixlayer::help_text::HELP_JINI)
+        .chain(mixlayer::help_extra::HELP)
+    {
         assert!(known.iter().any(|k| k == p), "help entry for unknown command {p:?}");
     }
 }
