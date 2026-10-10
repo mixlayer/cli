@@ -1,3 +1,4 @@
+mod account;
 mod auth;
 mod chat;
 mod doctor;
@@ -23,6 +24,12 @@ pub fn dispatch(path: &[&str], m: &ArgMatches, g: &Globals) -> Option<anyhow::Re
         ["keys", "create"] => keys::create(m, g),
         ["keys", "rotate"] => keys::rotate(m, g),
         ["keys", "delete"] => keys::delete(m, g),
+        ["keys", "mint"] => keys::mint(m, g),
+        ["whoami"] => account::whoami(m, g),
+        ["spend"] => account::spend(m, g),
+        ["budget"] | ["budget", "show"] => account::budget_show(m, g),
+        ["budget", "set"] => account::budget_set(m, g),
+        ["audit"] => account::audit(m, g),
         ["models", "list"] => models::list(m, g),
         ["models", "get"] => models::get(m, g),
         ["models", "query"] => models::query(m, g),

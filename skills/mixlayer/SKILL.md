@@ -13,7 +13,10 @@ description: Use Mixlayer models and OpenAI-compatible calls; compare models, or
 
 ## Organization and API keys
 
-- For organization work (API keys, members, analytics, billing), use the `mixlayer-platform` MCP server when it is configured; otherwise use `mixlayer keys list|create|rotate|delete`. Both need a key with `api-read` to read; creating, rotating or deleting keys needs `api-admin`.
+- Run `mixlayer whoami --agent` before organization work and check `can.admin` before administrative changes.
+- For organization work (API keys, members, analytics, billing), use the `mixlayer-platform` MCP server when it is configured; otherwise start with `mixlayer keys list`. Reading needs `api-read`; creating, rotating or deleting keys needs `api-admin`.
+- Give sub-agents and CI jobs a short-lived key with `mixlayer keys mint --ttl 30m -- mixlayer models list` instead of the user's key. Use `mixlayer spend --fail-over 5 --agent` as a guard in loops.
+- Run `mixlayer budget set --monthly-limit 25 --yes` only when the user asked for that exact change. Use `mixlayer audit` to see what agents changed.
 - Create keys with the fewest permissions the job needs (`--permissions inference` for a script that only calls models). Never echo a new secret into chat or a file the user did not ask for; prefer `mixlayer keys create --save` or piping stdout into a secret store.
 - Rotating or deleting a key breaks whatever uses it. Do it only when the user asks for that key, and confirm the key ID first.
 

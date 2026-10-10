@@ -264,6 +264,10 @@ impl Client {
         self.request("POST", path, Some(body), false)
     }
 
+    pub fn put(&mut self, path: &str, body: &Value) -> anyhow::Result<Value> {
+        self.request("PUT", path, Some(body), false)
+    }
+
     pub fn post_raw(&mut self, path: &str, body: &Value) -> anyhow::Result<String> {
         self.request_raw("POST", path, Some(body), false)
     }
@@ -285,6 +289,7 @@ impl Client {
             let mut request = match method {
                 "GET" => self.http.get(&url),
                 "POST" => self.http.post(&url),
+                "PUT" => self.http.put(&url),
                 "DELETE" => self.http.delete(&url),
                 _ => anyhow::bail!("unsupported HTTP method"),
             }

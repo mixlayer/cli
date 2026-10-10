@@ -51,7 +51,12 @@ fn stdio_tools_match_go_and_sql_blocks_vault() {
         list.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
         list
     };
-    assert_eq!(pick(&response(2)["result"]["tools"]), pick(&go["tools"]));
+    let mut rust_tools = pick(&response(2)["result"]["tools"]);
+    for name in ["whoami", "spend"] {
+        assert!(rust_tools.iter().any(|tool| tool["name"] == name));
+    }
+    rust_tools.retain(|tool| tool["name"] != "whoami" && tool["name"] != "spend");
+    assert_eq!(rust_tools, pick(&go["tools"]));
     let sql = &response(3)["result"];
     assert_eq!(sql["isError"], true, "{sql}");
     assert!(sql["content"][0]["text"].as_str().unwrap().contains("vault"));

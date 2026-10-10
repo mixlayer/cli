@@ -287,6 +287,18 @@ mixlayer keys create --name ci --permissions inference   # prints the new secret
 mixlayer keys rotate <key-id> --yes
 ```
 
+### Your account from the terminal
+
+```sh
+mixlayer whoami --agent                                  # key source, organization and permissions
+mixlayer keys mint --ttl 30m -- mixlayer models list      # give one job a temporary key
+mixlayer spend --range current --fail-over 5 --agent     # exit 9 when gross usage exceeds $5
+mixlayer budget set --monthly-limit 25 --warn-at 20 --yes
+mixlayer audit --since 24h --follow
+```
+
+Minted keys expire on the server and are deleted when the job ends. Inference may keep accepting a deleted key for up to a minute while the gateway cache refreshes. `budget set` limits are monthly; reaching the limit pauses paid model traffic until it resets or is raised.
+
 Agents can also discover the CLI directly:
 
 ```sh

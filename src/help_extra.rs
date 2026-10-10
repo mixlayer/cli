@@ -74,6 +74,67 @@ refreshes. Asks first; scripts and agents must pass --yes explicitly."#,
         r#"  mixlayer keys rotate <key-id> --yes
   mixlayer keys rotate <key-id> --yes --save"#,
     ),
+    (
+        r#"keys mint"#,
+        r#"Create a short-lived API key, run one command with its secret in an
+environment variable, then delete the key. The server also expires it after
+--ttl even if this process stops. The child inherits stdin, stdout and stderr.
+Model calls may keep accepting a deleted key for up to a minute while the
+gateway's authorization cache refreshes."#,
+        r#"  mixlayer keys mint --ttl 30m -- sh -c 'mixlayer models list'
+  mixlayer keys mint --permissions inference --key-env JOB_KEY -- ./job"#,
+    ),
+    (
+        r#"whoami"#,
+        r#"Show which configured API key is in use, where it came from, and
+which Platform API permissions it has. The secret is never shown. An
+inference-only key can still show its local ID and source, but cannot read
+its key record from the Platform API."#,
+        r#"  mixlayer whoami
+  mixlayer whoami --org <org-id> --agent"#,
+    ),
+    (
+        r#"spend"#,
+        r#"Show usage spend for the current billing period or a recent range.
+--fail-over compares gross usage before credits in the chosen range and
+exits 9 when usage is greater than the given dollar amount."#,
+        r#"  mixlayer spend
+  mixlayer spend --range 30d --fail-over 5 --agent"#,
+    ),
+    (
+        r#"budget"#,
+        r#"Show monthly spending controls and prepaid balance. A monthly
+limit pauses paid model traffic when reached. Use budget set to change a
+control; only the fields you pass are changed."#,
+        r#"  mixlayer budget
+  mixlayer budget show --org <org-id>
+  mixlayer budget set --monthly-limit 25 --warn-at 20 --yes"#,
+    ),
+    (
+        r#"budget show"#,
+        r#"Show the monthly usage limit, warning, low-balance warning,
+cutoff state and, for prepaid accounts, credit balance."#,
+        r#"  mixlayer budget show --agent"#,
+    ),
+    (
+        r#"budget set"#,
+        r#"Change selected spend controls while preserving the others.
+Values are positive dollars with at most two decimals; off disables a
+control. The monthly limit pauses paid model traffic when reached. Pass
+--yes explicitly, including in agent mode."#,
+        r#"  mixlayer budget set --monthly-limit 25 --warn-at 20 --yes
+  mixlayer budget set --monthly-limit off --yes
+  mixlayer budget set --warn-at 15 --dry-run"#,
+    ),
+    (
+        r#"audit"#,
+        r#"List organization audit events newest first. Filter by time,
+action prefix, actor or resource type. --follow prints the initial page
+oldest first and polls for newer entries; with --json or --agent it emits
+one JSON object per line until Ctrl-C."#,
+        r#"  mixlayer audit --since 24h --action api_key.
+  mixlayer audit --follow --interval 5s"#,
+    ),
 ];
 
 pub fn lookup(path: &str) -> Option<(&'static str, &'static str)> {

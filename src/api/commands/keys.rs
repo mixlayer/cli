@@ -6,6 +6,7 @@
 //! written to the ledger or the HTTP cache.
 
 use std::io::{BufRead, IsTerminal, Write};
+use std::process::Command;
 
 use clap::ArgMatches;
 use serde_json::{Map, Value, json};
@@ -112,9 +113,180 @@ pub fn delete(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     }
 }
 
+pub fn mint(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
+    let command = words(m, "keys mint");
+    if command.is_empty() {
+        return Err(exit::usage("a command is required after --"));
+    }
+    let ttl = crate::api::client::parse_duration(arg(m, "ttl").unwrap_or("30m"))
+        .map_err(|e| exit::usage(format!("invalid --ttl: {e}")))?;
+    if ttl.is_zero() || ttl > std::time::Duration::from_secs(24 * 3600) {
+        return Err(exit::usage("--ttl must be greater than 0 and no more than 24h"));
+    }
+    let env_name = arg(m, "key-env").unwrap_or("MIXLAYER_API_KEY");
+    if !env_name
+        .bytes()
+        .enumerate()
+        .all(|(i, b)| b.is_ascii_alphabetic() || b == b'_' || (i > 0 && b.is_ascii_digit()))
+        || env_name.is_empty()
+    {
+        return Err(exit::usage("--key-env must be an environment variable name"));
+    }
+    let permissions = permissions(m)?;
+    let expires =
+        chrono::Utc::now() + chrono::Duration::from_std(ttl).map_err(|e| exit::usage(format!("invalid --ttl: {e}")))?;
+    let expires = expires.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let name = arg(m, "name").map(str::to_owned).unwrap_or_else(|| {
+        let first = std::path::Path::new(&command[0])
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or(&command[0]);
+        let suffix = format!("-{}", chrono::Utc::now().format("%Y%m%dT%H%M%SZ"));
+        let first: String = first.chars().take(200 - "mint-".len() - suffix.len()).collect();
+        format!("mint-{first}{suffix}")
+    });
+    if name.chars().count() > 200 {
+        return Err(exit::usage("--name is limited to 200 characters"));
+    }
+    let body = json!({"name": name, "permissions": permissions, "expires_at": expires});
+    let base = platform_base()?;
+    if g.dry_run {
+        let org = arg(m, "org").filter(|s| !s.is_empty()).unwrap_or(ORG_PLACEHOLDER);
+        return print(
+            &json!({"dry_run": true, "create": dry_run("POST", &base, &keys_path(org), Some(&body)),
+            "delete": dry_run("DELETE", &base, &key_path(org, "<minted-key-id>"), None), "command": command, "key_env": env_name}),
+            g,
+        );
+    }
+    let mut client = platform_client(m, &base)?;
+    let org = org_id(m, g, &mut client)?;
+    // Keep terminal signals from ending this process once the POST can create
+    // a key. The child restores their defaults and gets the same signal.
+    let _signals = MintSignals::ignore();
+    let created = data(
+        client
+            .post(&keys_path(&org), &body)
+            .map_err(|e| platform_error(e, g, "api-admin"))?,
+    );
+    let id = created
+        .get("id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| exit::err(Code::Api, "mint response missing key ID"))?
+        .to_owned();
+    let secret = match created.get("key").and_then(Value::as_str) {
+        Some(secret) => secret,
+        None => {
+            let _ = client.delete(&key_path(&org, &id));
+            return Err(exit::err(Code::Api, "mint response missing secret"));
+        }
+    };
+    if !g.quiet {
+        eprintln!(
+            "Minted API key {id} ({}), expires {expires}; running: {}",
+            permissions.join(", "),
+            command[0]
+        );
+    }
+    let mut child = Command::new(&command[0]);
+    child.args(&command[1..]).env(env_name, secret);
+    #[cfg(unix)]
+    unsafe {
+        use std::os::unix::process::CommandExt;
+        child.pre_exec(|| {
+            libc::signal(libc::SIGINT, libc::SIG_DFL);
+            libc::signal(libc::SIGTERM, libc::SIG_DFL);
+            Ok(())
+        });
+    }
+    let result = child.status();
+    let deletion = client.delete(&key_path(&org, &id));
+    if deletion.is_ok() {
+        if !g.quiet {
+            eprintln!("Deleted API key {id}");
+        }
+    } else {
+        eprintln!("Could not delete API key {id} (expires {expires}); retry: mixlayer keys delete {id} --yes");
+    }
+    let status = result.map_err(|e| exit::err(Code::Other, format!("running {}: {e}", command[0])))?;
+    let child_code = status.code().unwrap_or_else(|| {
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::ExitStatusExt;
+            128 + status.signal().unwrap_or(1)
+        }
+        #[cfg(not(unix))]
+        {
+            1
+        }
+    });
+    if child_code != 0 {
+        return Err(exit::ChildExit(child_code.clamp(1, 255) as u8).into());
+    }
+    deletion.map_err(|e| exit::err(Code::Api, format!("deleting minted API key {id}: {e}")))?;
+    Ok(())
+}
+
+#[cfg(unix)]
+struct MintSignals(libc::sighandler_t, libc::sighandler_t);
+
+#[cfg(unix)]
+impl MintSignals {
+    fn ignore() -> Self {
+        // The child resets these to their defaults; the parent keeps cleanup alive.
+        unsafe {
+            Self(
+                libc::signal(libc::SIGINT, libc::SIG_IGN),
+                libc::signal(libc::SIGTERM, libc::SIG_IGN),
+            )
+        }
+    }
+}
+
+#[cfg(unix)]
+impl Drop for MintSignals {
+    fn drop(&mut self) {
+        unsafe {
+            libc::signal(libc::SIGINT, self.0);
+            libc::signal(libc::SIGTERM, self.1);
+        }
+    }
+}
+
+#[cfg(windows)]
+struct MintSignals;
+
+#[cfg(windows)]
+impl MintSignals {
+    fn ignore() -> Self {
+        // Console events reach the parent and child. Keep the parent alive to
+        // delete the key; the child still receives the event normally.
+        unsafe { set_console_ctrl_handler(Some(mint_console_event), 1) };
+        Self
+    }
+}
+
+#[cfg(windows)]
+impl Drop for MintSignals {
+    fn drop(&mut self) {
+        unsafe { set_console_ctrl_handler(Some(mint_console_event), 0) };
+    }
+}
+
+#[cfg(windows)]
+unsafe extern "system" fn mint_console_event(event: u32) -> i32 {
+    if matches!(event, 0 | 1) { 1 } else { 0 } // CTRL_C_EVENT or CTRL_BREAK_EVENT
+}
+
+#[cfg(windows)]
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    #[link_name = "SetConsoleCtrlHandler"]
+    fn set_console_ctrl_handler(handler: Option<unsafe extern "system" fn(u32) -> i32>, add: i32) -> i32;
+}
+
 /// A client pointed at the Platform API, which takes the same bearer key as
 /// the inference API.
-fn platform_client(m: &ArgMatches, base: &str) -> anyhow::Result<Client> {
+pub(crate) fn platform_client(m: &ArgMatches, base: &str) -> anyhow::Result<Client> {
     let mut client = new_client(m)?;
     if client.config.auth_header.is_empty() {
         return Err(exit::err(
@@ -130,7 +302,7 @@ fn platform_client(m: &ArgMatches, base: &str) -> anyhow::Result<Client> {
 }
 
 /// `--org`, or the single organization the key can see.
-fn org_id(m: &ArgMatches, g: &Globals, client: &mut Client) -> anyhow::Result<String> {
+pub(crate) fn org_id(m: &ArgMatches, g: &Globals, client: &mut Client) -> anyhow::Result<String> {
     if let Some(org) = arg(m, "org").filter(|s| !s.is_empty()) {
         return Ok(org.to_owned());
     }
@@ -155,7 +327,7 @@ fn org_id(m: &ArgMatches, g: &Globals, client: &mut Client) -> anyhow::Result<St
     }
 }
 
-fn permissions(m: &ArgMatches) -> anyhow::Result<Vec<String>> {
+pub(crate) fn permissions(m: &ArgMatches) -> anyhow::Result<Vec<String>> {
     let given: Vec<String> = m
         .get_many::<String>("permissions")
         .map(|v| v.map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect())
@@ -187,15 +359,15 @@ fn key_id(m: &ArgMatches, command: &str) -> anyhow::Result<String> {
     }
 }
 
-fn keys_path(org: &str) -> String {
+pub(crate) fn keys_path(org: &str) -> String {
     format!("/v1/organizations/{}/api_keys", encode(org))
 }
 
-fn key_path(org: &str, id: &str) -> String {
+pub(crate) fn key_path(org: &str, id: &str) -> String {
     format!("{}/{}", keys_path(org), encode(id))
 }
 
-fn encode(segment: &str) -> String {
+pub(crate) fn encode(segment: &str) -> String {
     if segment == ORG_PLACEHOLDER {
         return segment.to_owned();
     }
@@ -211,14 +383,14 @@ fn encode(segment: &str) -> String {
 }
 
 /// Platform responses wrap their payload as `{"data": ...}`.
-fn data(v: Value) -> Value {
+pub(crate) fn data(v: Value) -> Value {
     match v {
         Value::Object(mut obj) if obj.contains_key("data") => obj.remove("data").unwrap_or(Value::Null),
         other => other,
     }
 }
 
-fn dry_run(method: &str, base: &str, path: &str, body: Option<&Value>) -> Value {
+pub(crate) fn dry_run(method: &str, base: &str, path: &str, body: Option<&Value>) -> Value {
     let mut v = json!({"dry_run": true, "method": method, "url": format!("{base}{path}")});
     if let Some(body) = body {
         v["body"] = body.clone();
@@ -230,7 +402,7 @@ fn dry_run(method: &str, base: &str, path: &str, body: Option<&Value>) -> Value 
 /// the `--yes` that `--agent` mode implies does not, so an agent has to write
 /// `--yes` into the command, where the user sees it. Without a terminal the
 /// command refuses.
-fn confirm(m: &ArgMatches, g: &Globals, question: &str) -> anyhow::Result<()> {
+pub(crate) fn confirm(m: &ArgMatches, g: &Globals, question: &str) -> anyhow::Result<()> {
     let explicit_yes = m.value_source("yes") == Some(clap::parser::ValueSource::CommandLine)
         && m.try_get_one::<bool>("yes").ok().flatten() == Some(&true);
     if explicit_yes {
@@ -295,7 +467,7 @@ fn deliver_secret(m: &ArgMatches, g: &Globals, mut key: Value, verb: &str) -> an
 
 /// Auth and not-found errors from the Platform API name the permission the
 /// call needs instead of the inference hints.
-fn platform_error(err: anyhow::Error, g: &Globals, needs: &str) -> anyhow::Error {
+pub(crate) fn platform_error(err: anyhow::Error, g: &Globals, needs: &str) -> anyhow::Error {
     let Some(api) = err.downcast_ref::<ApiError>() else {
         return classified(err, g, "keys");
     };

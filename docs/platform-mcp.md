@@ -119,6 +119,7 @@ With `--json`, `create` and `rotate` print the whole key object, secret included
 
 ## Troubleshooting
 
+- Run `mixlayer whoami` to check the configured key's source, organization and permissions without showing its secret.
 - **HTTP 401, "invalid authentication credentials"**: the API didn't accept the key it got. Check that the variable is exported in the environment the agent starts from, then restart the agent.
 - **HTTP 403**: the key lacks the permission that tool needs. Reading needs `api-read`; creating, rotating or deleting keys needs `api-admin`. Edit the key in the [console](https://console.mixlayer.com/app/api-keys).
 - **The agent can't find an organization ID**: start with the `list_organizations` tool, or `mixlayer keys list --org <id>` in the terminal.

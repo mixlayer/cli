@@ -124,6 +124,10 @@ pub fn flag_presentation(cmd_path: &str, flag: &Flag, jini: bool) -> (&'static s
 /// still has to match exactly.
 pub const RUST_ONLY: &[(&str, Option<&str>)] = &[
     ("keys", None),
+    ("whoami", None),
+    ("spend", None),
+    ("budget", None),
+    ("audit", None),
     ("agent setup", Some("key-env")),
     ("agent setup", Some("platform")),
 ];
