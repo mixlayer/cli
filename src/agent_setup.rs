@@ -21,6 +21,8 @@ pub struct Options {
     pub mcp_binary: Option<PathBuf>,
     pub dry_run: bool,
     pub uninstall: bool,
+    /// Also register (or, with `uninstall`, remove) the hosted Platform MCP server.
+    pub platform: Option<Platform>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -150,30 +152,58 @@ pub fn run(mut opts: Options) -> Result<Report> {
         actions: Vec::new(),
     };
     let mut changed = false;
+    if let Some(p) = opts.platform.as_ref().filter(|_| !opts.uninstall) {
+        check_platform_key(&mut report, p);
+    }
+    // Uninstall removes managed Platform entries even without --platform; the
+    // stored record, not this value, decides what is removed.
+    let platform = opts.platform.clone().or_else(|| {
+        opts.uninstall.then(|| Platform {
+            url: "https://api.mixlayer.com/v1/mcp".into(),
+            key_env: "MIXLAYER_API_KEY".into(),
+        })
+    });
     for agent in targets {
-        let mut rec = state.get(agent).cloned().unwrap_or_default();
-        let previous = rec.clone();
-        let result = (|| -> Result<()> {
-            if let Some(rel) = skill_location(agent) {
-                // Join per component so Windows paths use one separator.
-                let dir = rel.split('/').fold(home.clone(), |p, part| p.join(part));
-                changed |= skill_action(&mut report, agent, &dir, &mut rec, &opts)?;
-            }
-            changed |= mcp_action(&mut report, agent, &home, &mut rec, &opts)?;
-            Ok(())
-        })();
-        if !opts.dry_run {
-            if rec == Entry::default() {
-                state.remove(agent);
-            } else {
-                state.insert(agent.to_owned(), rec);
-            }
+        let platform_key = format!("{agent}:{PLATFORM_KIND}");
+        let mut steps = vec![agent.to_owned()];
+        if platform.is_some() && (opts.platform.is_some() || (opts.uninstall && state.contains_key(&platform_key))) {
+            steps.push(platform_key.clone());
         }
-        if let Err(error) = result {
-            if !opts.dry_run && (changed || state.get(agent) != Some(&previous)) {
-                save_state(&state_path, &state)?;
+        // Undo in reverse install order, so the entry that created a shared
+        // config file is removed last and can delete the file.
+        if opts.uninstall {
+            steps.reverse();
+        }
+        for key in steps {
+            let mut rec = state.get(&key).cloned().unwrap_or_default();
+            let previous = rec.clone();
+            let result = (|| -> Result<()> {
+                if key == platform_key {
+                    let platform = platform.as_ref().expect("platform step implies a platform");
+                    changed |= platform_action(&mut report, agent, &home, &mut rec, &opts, platform)?;
+                    return Ok(());
+                }
+                if let Some(rel) = skill_location(agent) {
+                    // Join per component so Windows paths use one separator.
+                    let dir = rel.split('/').fold(home.clone(), |p, part| p.join(part));
+                    changed |= skill_action(&mut report, agent, &dir, &mut rec, &opts)?;
+                }
+                changed |= mcp_action(&mut report, agent, &home, &mut rec, &opts)?;
+                Ok(())
+            })();
+            if !opts.dry_run {
+                if rec == Entry::default() {
+                    state.remove(&key);
+                } else {
+                    state.insert(key.clone(), rec);
+                }
             }
-            return Err(error);
+            if let Err(error) = result {
+                if !opts.dry_run && (changed || state.get(&key) != Some(&previous)) {
+                    save_state(&state_path, &state)?;
+                }
+                return Err(error);
+            }
         }
     }
     if changed && !opts.dry_run {
@@ -442,24 +472,226 @@ fn mcp_action(report: &mut Report, agent: &str, home: &Path, rec: &mut Entry, op
         return Ok(false);
     }
     let bin = bin.unwrap_or_default();
+    let server = Server::local(&bin);
     match agent {
-        "codex" => toml_mcp(report, agent, &home.join(".codex/config.toml"), &bin, rec, opts),
-        "cursor" => json_mcp(report, agent, &home.join(".cursor/mcp.json"), &bin, rec, opts),
-        "claude-desktop" => {
-            let base = if cfg!(target_os = "macos") {
-                home.join("Library/Application Support/Claude")
-            } else if cfg!(windows) {
-                std::env::var_os("APPDATA")
-                    .map(PathBuf::from)
-                    .unwrap_or_else(|| home.to_owned())
-                    .join("Claude")
-            } else {
-                home.join(".config/Claude")
-            };
-            json_mcp(report, agent, &base.join("claude_desktop_config.json"), &bin, rec, opts)
-        }
-        "claude-code" => claude_mcp(report, home, &bin, rec, opts),
+        "codex" => toml_mcp(report, agent, &home.join(".codex/config.toml"), &server, rec, opts),
+        "cursor" => json_mcp(report, agent, &home.join(".cursor/mcp.json"), &server, rec, opts),
+        "claude-desktop" => json_mcp(report, agent, &claude_desktop_config(home), &server, rec, opts),
+        "claude-code" => claude_mcp(report, home, &server, rec, opts),
         _ => Ok(false),
+    }
+}
+
+fn claude_desktop_config(home: &Path) -> PathBuf {
+    let base = if cfg!(target_os = "macos") {
+        home.join("Library/Application Support/Claude")
+    } else if cfg!(windows) {
+        std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.to_owned())
+            .join("Claude")
+    } else {
+        home.join(".config/Claude")
+    };
+    base.join("claude_desktop_config.json")
+}
+
+/// The hosted Platform MCP server: organizations, members, API keys, usage
+/// and billing as tools, authorized by the key in `key_env`. The agent config
+/// holds only the variable's name; the agent reads the value at launch.
+fn platform_action(
+    report: &mut Report,
+    agent: &str,
+    home: &Path,
+    rec: &mut Entry,
+    opts: &Options,
+    platform: &Platform,
+) -> Result<bool> {
+    let unsupported = |report: &mut Report, note: &str| {
+        if !opts.uninstall {
+            action(report, agent, PLATFORM_KIND, None, "unsupported", Some(note), None);
+        }
+        Ok(false)
+    };
+    match agent {
+        "codex" => toml_mcp(
+            report,
+            agent,
+            &home.join(".codex/config.toml"),
+            &Server::platform(platform, agent),
+            rec,
+            opts,
+        ),
+        "cursor" => json_mcp(
+            report,
+            agent,
+            &home.join(".cursor/mcp.json"),
+            &Server::platform(platform, agent),
+            rec,
+            opts,
+        ),
+        "claude-code" => claude_mcp(report, home, &Server::platform(platform, agent), rec, opts),
+        "claude-desktop" => unsupported(
+            report,
+            "Claude Desktop config cannot read the key from an environment variable; use Claude Code, Codex or Cursor",
+        ),
+        _ => unsupported(report, "MCP config path is not established"),
+    }
+}
+
+const PLATFORM_KIND: &str = "platform-mcp";
+const PLATFORM_NAME: &str = "mixlayer-platform";
+
+/// Where the hosted Platform MCP server lives and which variable holds its key.
+#[derive(Clone, Debug)]
+pub struct Platform {
+    /// Full MCP endpoint, e.g. `https://api.mixlayer.com/v1/mcp`.
+    pub url: String,
+    /// Environment variable the agent reads for the bearer token.
+    pub key_env: String,
+}
+
+impl Platform {
+    pub fn new(base: &str, key_env: &str) -> Result<Self> {
+        let valid = !key_env.is_empty()
+            && !key_env.starts_with(|c: char| c.is_ascii_digit())
+            && key_env.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if !valid {
+            bail!("--key-env must be an environment variable name (letters, digits and _), got {key_env:?}");
+        }
+        Ok(Self {
+            url: format!("{}/v1/mcp", base.trim_end_matches('/')),
+            key_env: key_env.to_owned(),
+        })
+    }
+}
+
+/// One MCP server entry, in each agent's config format.
+struct Server {
+    name: &'static str,
+    /// Action kind in the report: `mcp` or `platform-mcp`.
+    kind: &'static str,
+    /// `mcpServers` value for JSON configs (Cursor, Claude Desktop).
+    json: Value,
+    /// Body of the `[mcp_servers.<name>]` table for Codex.
+    toml: String,
+    /// Arguments to `claude` that register the server at user scope.
+    claude_add: Vec<String>,
+}
+
+impl Server {
+    fn local(bin: &Path) -> Self {
+        let bin = bin.display().to_string();
+        Self {
+            name: "mixlayer",
+            kind: "mcp",
+            json: json!({"command": bin, "args": []}),
+            toml: format!(
+                "command = {}\nargs = []\n",
+                serde_json::to_string(&bin).unwrap_or_default()
+            ),
+            claude_add: ["mcp", "add", "--scope", "user", "mixlayer", "--", &bin]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        }
+    }
+
+    fn platform(p: &Platform, agent: &str) -> Self {
+        // Each agent has its own syntax for "read this from the environment".
+        let header = match agent {
+            "cursor" => format!("Bearer ${{env:{}}}", p.key_env),
+            _ => format!("Bearer ${{{}}}", p.key_env),
+        };
+        let quote = |s: &str| serde_json::to_string(s).unwrap_or_default();
+        Self {
+            name: PLATFORM_NAME,
+            kind: PLATFORM_KIND,
+            json: json!({"url": p.url, "headers": {"Authorization": header}}),
+            toml: format!(
+                "url = {}\nbearer_token_env_var = {}\n",
+                quote(&p.url),
+                quote(&p.key_env)
+            ),
+            claude_add: [
+                "mcp",
+                "add",
+                "--transport",
+                "http",
+                "--scope",
+                "user",
+                PLATFORM_NAME,
+                &p.url,
+                "--header",
+                &format!("Authorization: {header}"),
+            ]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        }
+    }
+
+    /// The `claude` arguments as a command a user can paste into a POSIX shell.
+    fn claude_add_display(&self) -> String {
+        self.claude_add
+            .iter()
+            .map(|a| shell_quote(a))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+fn shell_quote(arg: &str) -> String {
+    if !arg.is_empty()
+        && arg
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_./:=@%+,".contains(c))
+    {
+        return arg.to_owned();
+    }
+    format!("'{}'", arg.replace('\'', r"'\''"))
+}
+
+/// Read-only check that the key the agent will use can call the Platform API.
+/// Never fails setup: the result is reported as a `platform-key` action.
+fn check_platform_key(report: &mut Report, p: &Platform) {
+    let mut push = |status: &str, note: String| {
+        action(report, "platform", "platform-key", None, status, Some(&note), None);
+    };
+    let keys_page = crate::api::console_url("/app/api-keys", "agent-setup");
+    let Some(key) = std::env::var(&p.key_env).ok().filter(|v| !v.trim().is_empty()) else {
+        push(
+            "missing",
+            format!(
+                "{} is not set here. Set it in the environment your agent starts from; the agent reads it at launch",
+                p.key_env
+            ),
+        );
+        return;
+    };
+    let orgs_url = format!("{}/v1/organizations", p.url.trim_end_matches("/v1/mcp"));
+    let response = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .and_then(|c| c.get(&orgs_url).bearer_auth(key.trim()).send());
+    match response.map(|r| r.status().as_u16()) {
+        Ok(200) => push("ok", format!("{} can read the Platform API", p.key_env)),
+        Ok(403) => push(
+            "no_platform_permission",
+            format!(
+                "the Platform API refused {} (HTTP 403). Give the key api-read (or api-write/api-admin to let the agent change things) at {keys_page}",
+                p.key_env
+            ),
+        ),
+        Ok(401) => push(
+            "rejected",
+            format!(
+                "the Platform API rejected {} (HTTP 401); check the key at {keys_page}",
+                p.key_env
+            ),
+        ),
+        Ok(status) => push("error", format!("unexpected HTTP {status} from {orgs_url}")),
+        Err(_) => push("unreachable", format!("could not reach {orgs_url}")),
     }
 }
 
@@ -487,31 +719,32 @@ fn json_mcp(
     report: &mut Report,
     agent: &str,
     path: &Path,
-    bin: &Path,
+    server: &Server,
     rec: &mut Entry,
     opts: &Options,
 ) -> Result<bool> {
+    let kind = server.kind;
     let (mut doc, created) = read_json_object(path)?;
     let mut servers = match doc.remove("mcpServers") {
         Some(Value::Object(m)) => m,
         Some(Value::Null) | None => Map::new(),
         _ => bail!("{}: mcpServers must be an object", path.display()),
     };
-    let current = servers.get("mixlayer").cloned();
+    let current = servers.get(server.name).cloned();
     if opts.uninstall {
         if !rec.mcp_installed {
-            action(report, agent, "mcp", Some(path), "not_managed", None, None);
+            action(report, agent, kind, Some(path), "not_managed", None, None);
             return Ok(false);
         }
         if current != rec.mcp_value {
-            action(report, agent, "mcp", Some(path), "modified_skip", None, None);
+            action(report, agent, kind, Some(path), "modified_skip", None, None);
             return Ok(false);
         }
         if opts.dry_run {
-            action(report, agent, "mcp", Some(path), "would_remove", None, None);
+            action(report, agent, kind, Some(path), "would_remove", None, None);
             return Ok(false);
         }
-        servers.remove("mixlayer");
+        servers.remove(server.name);
         if !servers.is_empty() {
             doc.insert("mcpServers".into(), Value::Object(servers));
         }
@@ -526,15 +759,15 @@ fn json_mcp(
         rec.mcp_installed = false;
         rec.mcp_file_created = false;
         rec.mcp_value = None;
-        action(report, agent, "mcp", Some(path), "removed", None, None);
+        action(report, agent, kind, Some(path), "removed", None, None);
         return Ok(true);
     }
-    let value = json!({"command": bin.display().to_string(), "args": []});
+    let value = server.json.clone();
     if let Some(current) = current {
         action(
             report,
             agent,
-            "mcp",
+            kind,
             Some(path),
             if current == value { "unchanged" } else { "conflict_skip" },
             None,
@@ -543,10 +776,10 @@ fn json_mcp(
         return Ok(false);
     }
     if opts.dry_run {
-        action(report, agent, "mcp", Some(path), "would_register", None, None);
+        action(report, agent, kind, Some(path), "would_register", None, None);
         return Ok(false);
     }
-    servers.insert("mixlayer".into(), value.clone());
+    servers.insert(server.name.into(), value.clone());
     doc.insert("mcpServers".into(), Value::Object(servers));
     let mut bytes = serde_json::to_vec_pretty(&doc)?;
     bytes.push(b'\n');
@@ -554,7 +787,7 @@ fn json_mcp(
     rec.mcp_installed = true;
     rec.mcp_file_created = created;
     rec.mcp_value = Some(value);
-    action(report, agent, "mcp", Some(path), "registered", None, None);
+    action(report, agent, kind, Some(path), "registered", None, None);
     Ok(true)
 }
 
@@ -562,10 +795,11 @@ fn toml_mcp(
     report: &mut Report,
     agent: &str,
     path: &Path,
-    bin: &Path,
+    server: &Server,
     rec: &mut Entry,
     opts: &Options,
 ) -> Result<bool> {
+    let kind = server.kind;
     let created = !path.exists();
     let bytes = if created { Vec::new() } else { fs::read(path)? };
     let doc: toml::Value = if bytes.is_empty() {
@@ -577,19 +811,19 @@ fn toml_mcp(
     if servers.is_some_and(|v| !v.is_table()) {
         bail!("{}: mcp_servers must be a table", path.display());
     }
-    let exists = servers.and_then(|v| v.get("mixlayer")).is_some();
+    let exists = servers.and_then(|v| v.get(server.name)).is_some();
     if opts.uninstall {
         if !rec.mcp_installed {
-            action(report, agent, "mcp", Some(path), "not_managed", None, None);
+            action(report, agent, kind, Some(path), "not_managed", None, None);
             return Ok(false);
         }
         let raw = String::from_utf8(bytes)?;
         if rec.mcp_snippet.is_empty() || !raw.contains(&rec.mcp_snippet) {
-            action(report, agent, "mcp", Some(path), "modified_skip", None, None);
+            action(report, agent, kind, Some(path), "modified_skip", None, None);
             return Ok(false);
         }
         if opts.dry_run {
-            action(report, agent, "mcp", Some(path), "would_remove", None, None);
+            action(report, agent, kind, Some(path), "would_remove", None, None);
             return Ok(false);
         }
         let updated = raw.replacen(&rec.mcp_snippet, "", 1);
@@ -602,14 +836,14 @@ fn toml_mcp(
         rec.mcp_installed = false;
         rec.mcp_file_created = false;
         rec.mcp_snippet.clear();
-        action(report, agent, "mcp", Some(path), "removed", None, None);
+        action(report, agent, kind, Some(path), "removed", None, None);
         return Ok(true);
     }
     if exists {
         action(
             report,
             agent,
-            "mcp",
+            kind,
             Some(path),
             if rec.mcp_installed {
                 "unchanged"
@@ -622,7 +856,7 @@ fn toml_mcp(
         return Ok(false);
     }
     if opts.dry_run {
-        action(report, agent, "mcp", Some(path), "would_register", None, None);
+        action(report, agent, kind, Some(path), "would_register", None, None);
         return Ok(false);
     }
     let prefix = if bytes.is_empty() {
@@ -632,9 +866,9 @@ fn toml_mcp(
     } else {
         "\n\n"
     };
-    let encoded = serde_json::to_string(&bin.display().to_string())?;
     let snippet = format!(
-        "{prefix}# mixlayer agent setup begin\n[mcp_servers.mixlayer]\ncommand = {encoded}\nargs = []\n# mixlayer agent setup end\n"
+        "{prefix}# mixlayer agent setup begin\n[mcp_servers.{}]\n{}# mixlayer agent setup end\n",
+        server.name, server.toml
     );
     let mut updated = bytes;
     updated.extend_from_slice(snippet.as_bytes());
@@ -642,7 +876,7 @@ fn toml_mcp(
     rec.mcp_installed = true;
     rec.mcp_file_created = created;
     rec.mcp_snippet = snippet;
-    action(report, agent, "mcp", Some(path), "registered", None, None);
+    action(report, agent, kind, Some(path), "registered", None, None);
     Ok(true)
 }
 
@@ -650,7 +884,8 @@ fn hash_json(v: &Value) -> String {
     hex::encode(Sha256::digest(serde_json::to_vec(v).unwrap_or_default()))
 }
 
-fn claude_mcp(report: &mut Report, home: &Path, bin: &Path, rec: &mut Entry, opts: &Options) -> Result<bool> {
+fn claude_mcp(report: &mut Report, home: &Path, server: &Server, rec: &mut Entry, opts: &Options) -> Result<bool> {
+    let kind = server.kind;
     let path = std::env::var_os("CLAUDE_CONFIG_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| home.to_owned())
@@ -658,17 +893,14 @@ fn claude_mcp(report: &mut Report, home: &Path, bin: &Path, rec: &mut Entry, opt
     let claude = find_executable(if cfg!(windows) { "claude.exe" } else { "claude" });
     if claude.is_none() {
         let cmd = if opts.uninstall {
-            "claude mcp remove --scope user mixlayer".into()
+            format!("claude mcp remove --scope user {}", server.name)
         } else {
-            format!(
-                "claude mcp add --scope user mixlayer -- {:?}",
-                bin.display().to_string()
-            )
+            format!("claude {}", server.claude_add_display())
         };
         action(
             report,
             "claude-code",
-            "mcp",
+            kind,
             Some(&path),
             "manual_command",
             None,
@@ -677,10 +909,10 @@ fn claude_mcp(report: &mut Report, home: &Path, bin: &Path, rec: &mut Entry, opt
         return Ok(false);
     }
     if opts.uninstall && !rec.mcp_installed {
-        action(report, "claude-code", "mcp", Some(&path), "not_managed", None, None);
+        action(report, "claude-code", kind, Some(&path), "not_managed", None, None);
         return Ok(false);
     }
-    let current = read_claude_entry(&path)?;
+    let current = read_claude_entry(&path, server.name)?;
     if !opts.uninstall {
         if rec.mcp_installed {
             let status = if current.as_ref().is_some_and(|v| hash_json(v) == rec.mcp_hash) {
@@ -688,47 +920,47 @@ fn claude_mcp(report: &mut Report, home: &Path, bin: &Path, rec: &mut Entry, opt
             } else {
                 "modified_skip"
             };
-            action(report, "claude-code", "mcp", Some(&path), status, None, None);
+            action(report, "claude-code", kind, Some(&path), status, None, None);
             return Ok(false);
         }
         if current.is_some() {
-            action(report, "claude-code", "mcp", Some(&path), "conflict_skip", None, None);
+            action(report, "claude-code", kind, Some(&path), "conflict_skip", None, None);
             return Ok(false);
         }
     } else {
         if current.is_none() {
             if opts.dry_run {
-                action(report, "claude-code", "mcp", Some(&path), "would_remove", None, None);
+                action(report, "claude-code", kind, Some(&path), "would_remove", None, None);
                 return Ok(false);
             }
             rec.mcp_installed = false;
             rec.mcp_hash.clear();
-            action(report, "claude-code", "mcp", Some(&path), "removed", None, None);
+            action(report, "claude-code", kind, Some(&path), "removed", None, None);
             return Ok(true);
         }
         if current.as_ref().is_some_and(|v| hash_json(v) != rec.mcp_hash) {
-            action(report, "claude-code", "mcp", Some(&path), "modified_skip", None, None);
+            action(report, "claude-code", kind, Some(&path), "modified_skip", None, None);
             return Ok(false);
         }
     }
     let args: Vec<String> = if opts.uninstall {
-        vec!["mcp", "remove", "--scope", "user", "mixlayer"]
+        ["mcp", "remove", "--scope", "user", server.name]
             .into_iter()
             .map(str::to_owned)
             .collect()
     } else {
-        ["mcp", "add", "--scope", "user", "mixlayer", "--"]
-            .into_iter()
-            .map(str::to_owned)
-            .chain(std::iter::once(bin.display().to_string()))
-            .collect()
+        server.claude_add.clone()
     };
-    let command = format!("claude {}", args.join(" "));
+    let command = if opts.uninstall {
+        format!("claude {}", args.join(" "))
+    } else {
+        format!("claude {}", server.claude_add_display())
+    };
     if opts.dry_run {
         action(
             report,
             "claude-code",
-            "mcp",
+            kind,
             Some(&path),
             if opts.uninstall {
                 "would_remove"
@@ -755,14 +987,15 @@ fn claude_mcp(report: &mut Report, home: &Path, bin: &Path, rec: &mut Entry, opt
         rec.mcp_installed = false;
         rec.mcp_hash.clear();
     } else {
-        let value = read_claude_entry(&path)?.context("claude mcp add succeeded but config has no mixlayer entry")?;
+        let value = read_claude_entry(&path, server.name)?
+            .with_context(|| format!("claude mcp add succeeded but config has no {} entry", server.name))?;
         rec.mcp_installed = true;
         rec.mcp_hash = hash_json(&value);
     }
     action(
         report,
         "claude-code",
-        "mcp",
+        kind,
         Some(&path),
         if opts.uninstall { "removed" } else { "registered" },
         None,
@@ -771,10 +1004,10 @@ fn claude_mcp(report: &mut Report, home: &Path, bin: &Path, rec: &mut Entry, opt
     Ok(true)
 }
 
-fn read_claude_entry(path: &Path) -> Result<Option<Value>> {
+fn read_claude_entry(path: &Path, name: &str) -> Result<Option<Value>> {
     if !path.exists() {
         return Ok(None);
     }
     let doc: Value = serde_json::from_slice(&fs::read(path)?).context("reading Claude MCP metadata")?;
-    Ok(doc.get("mcpServers").and_then(|v| v.get("mixlayer")).cloned())
+    Ok(doc.get("mcpServers").and_then(|v| v.get(name)).cloned())
 }

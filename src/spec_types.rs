@@ -118,6 +118,16 @@ pub fn flag_presentation(cmd_path: &str, flag: &Flag, jini: bool) -> (&'static s
     (flag.usage, false)
 }
 
+/// Commands and flags added after the Go port, as (command path, flag).
+/// `None` means the whole command. The parity test removes these from the
+/// Rust side before comparing against the Go snapshots, so everything else
+/// still has to match exactly.
+pub const RUST_ONLY: &[(&str, Option<&str>)] = &[
+    ("keys", None),
+    ("agent setup", Some("key-env")),
+    ("agent setup", Some("platform")),
+];
+
 /// Finds a command by its space-separated path below the root, e.g. `shield ask`.
 pub fn find(path: &str) -> Option<&'static Cmd> {
     let mut level: &'static [Cmd] = crate::spec::COMMANDS;

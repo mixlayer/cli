@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use super::{bool_arg, classified, new_client, print, words};
 use crate::Globals;
 use crate::api::client::{ApiError, Client, parse_duration};
-use crate::exit::{self, Code};
+use crate::exit;
 use crate::store::{ModelCacheRecord, Store};
 use sha2::{Digest, Sha256};
 
@@ -173,24 +173,9 @@ fn load_live_catalog_from_store(m: &ArgMatches, store: &mut Store) -> anyhow::Re
         requested.min(Duration::from_secs(5))
     };
     let mut client = Client::new(config, timeout, 0.0, true)?;
-    let base = std::env::var("MIXLAYER_PLATFORM_URL")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "https://api.mixlayer.com".into());
-    let url = url::Url::parse(&base).map_err(|_| exit::err(Code::Config, "invalid MIXLAYER_PLATFORM_URL"))?;
-    if !["http", "https"].contains(&url.scheme())
-        || url.host().is_none()
-        || !url.username().is_empty()
-        || url.password().is_some()
-        || base
-            .split("://")
-            .nth(1)
-            .is_some_and(|s| s.split('/').next().unwrap_or("").contains('@'))
-    {
-        return Err(exit::err(Code::Config, "invalid MIXLAYER_PLATFORM_URL"));
-    }
+    let base = crate::api::platform_base()?;
     // Platform prices use a separate origin and a five-second probe timeout.
-    client.config.base_url = base.trim_end_matches('/').into();
+    client.config.base_url = base.clone();
     let scope = catalog_scope(&base, &client.config.auth_header);
     cached_or_fetch(store, &scope, || fetch_live_catalog(&mut client))
 }

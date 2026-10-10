@@ -83,12 +83,47 @@ fn drop_hidden_jini_flags(v: &mut Value) {
     }
 }
 
+/// Removes commands and flags added after the Go port (see
+/// `spec_types::RUST_ONLY`) so the rest is still held to the Go snapshot.
+fn drop_rust_only(v: &mut Value) {
+    for (path, flag) in mixlayer::spec_types::RUST_ONLY {
+        let parts: Vec<&str> = path.split_whitespace().collect();
+        let (last, parents) = parts.split_last().unwrap();
+        let mut list = &mut v["commands"];
+        for p in parents {
+            let Some(cmd) = list.as_array_mut().and_then(|a| a.iter_mut().find(|c| c["name"] == *p)) else {
+                panic!("RUST_ONLY entry {path:?} names a missing parent {p:?}");
+            };
+            list = &mut cmd["subcommands"];
+        }
+        let commands = list.as_array_mut().expect("command list");
+        match flag {
+            None => {
+                let before = commands.len();
+                commands.retain(|c| c["name"] != *last);
+                assert_eq!(before - 1, commands.len(), "RUST_ONLY command {path:?} not found");
+            }
+            Some(flag) => {
+                let cmd = commands
+                    .iter_mut()
+                    .find(|c| c["name"] == *last)
+                    .unwrap_or_else(|| panic!("RUST_ONLY command {path:?} not found"));
+                let flags = cmd["flags"].as_array_mut().expect("flags");
+                let before = flags.len();
+                flags.retain(|f| f["name"] != *flag);
+                assert_eq!(before - 1, flags.len(), "RUST_ONLY flag {path:?} --{flag} not found");
+            }
+        }
+    }
+}
+
 fn assert_parity(snapshot: &str, jini: bool) {
     let mut go = normalize(go_snapshot(snapshot));
     if !jini {
         drop_hidden_jini_flags(&mut go);
     }
-    let rs = normalize(rust_context(jini));
+    let mut rs = normalize(rust_context(jini));
+    drop_rust_only(&mut rs);
     let mut out = Vec::new();
     diff(&go, &rs, "$", &mut out);
     assert!(
