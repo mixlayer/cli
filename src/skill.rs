@@ -134,6 +134,37 @@ mod tests {
         assert!(count >= 60, "only {count} documented commands checked");
     }
 
+    /// Every top-level command a user can run appears in the README, so a new
+    /// command can't ship with only `--help` and the generated reference.
+    /// Subcommands are covered by `references/commands.md`, linked from there.
+    #[test]
+    fn readme_mentions_every_top_level_command() {
+        let readme = include_str!("../README.md");
+        let mut names: Vec<&str> = crate::spec::COMMANDS
+            .iter()
+            .filter(|c| !c.hidden && !c.experimental)
+            .map(|c| c.name)
+            .collect();
+        names.push("agent-context");
+        let missing: Vec<&str> = names
+            .into_iter()
+            .filter(|name| {
+                let needle = format!("mixlayer {name}");
+                !readme.match_indices(&needle).any(|(i, _)| {
+                    readme[i + needle.len()..]
+                        .chars()
+                        .next()
+                        .is_none_or(|c| !(c.is_ascii_alphanumeric() || c == '-'))
+                })
+            })
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "README.md never shows these commands as `mixlayer <name>`: {missing:?}. Add an example or a sentence for each."
+        );
+        assert!(readme.contains("skills/mixlayer/references/commands.md"));
+    }
+
     #[test]
     fn embedded_skill_frontmatter() {
         assert!(TEXT.starts_with("---\nname: mixlayer\ndescription: "));

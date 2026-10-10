@@ -85,6 +85,14 @@ Check the install:
 mixlayer version
 ```
 
+For tab completion, add the script for your shell (`bash`, `zsh`, `fish` or `powershell`), for example:
+
+```sh
+mixlayer completion zsh > "${fpath[1]}/_mixlayer"
+```
+
+Every command and subcommand is listed in the [command reference](skills/mixlayer/references/commands.md), which is generated from the CLI itself. Add `--help` to any command for the details.
+
 ## Get started
 
 1. Create an API key in the [Mixlayer console](https://console.mixlayer.com/app/api-keys). `mixlayer auth setup --launch` opens that page for you.

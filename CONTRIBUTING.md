@@ -20,7 +20,14 @@ cd parity/e2e && go test .   # the release binary against a local fake API
 
 - Keep each PR to one change and include a test. Tests must not need a network connection or a real key; use a local fake server.
 - Run `cargo fmt`, `cargo clippy --all-targets -- -D warnings` and `cargo test` before opening the PR.
-- If you add or rename a command or flag, edit `src/spec.rs` and regenerate the agent skill's command reference with `cargo run -- agent skill-ref > skills/mixlayer/references/commands.md` (CI checks this). The local MCP server picks the command up as a tool automatically; mark it `mcp:hidden` if it handles secrets or private data. If agents need guidance on when to use it, add that to `skills/mixlayer/SKILL.md`. Users get the new skill when they rerun `mixlayer agent setup --yes`.
+- If you add or rename a command or flag, update these in the same PR:
+  - `src/spec.rs`, then regenerate the agent skill's command reference with `cargo run -- agent skill-ref > skills/mixlayer/references/commands.md` (CI checks this).
+  - `README.md`: every top-level command needs an example or a sentence there (a test checks this).
+  - `skills/mixlayer/SKILL.md`, if agents need guidance on when to use the command.
+  - `CHANGELOG.md`, under Unreleased.
+  - The local MCP server picks the command up as a tool automatically; mark it `mcp:hidden` if it handles secrets or private data.
+
+  Users get the new skill when they rerun `mixlayer agent setup --yes`.
 - Never put an API key in a command argument, a test fixture or a log line.
 
 ## Reporting bugs
