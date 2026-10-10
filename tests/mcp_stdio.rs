@@ -41,7 +41,9 @@ fn stdio_tools_match_go_and_sql_blocks_vault() {
     let response = |id: u64| messages.iter().find(|m| m.get("id") == Some(&json!(id))).unwrap();
     let go: Value = serde_json::from_str(include_str!("../parity/fixtures/go-mcp-tools.json")).unwrap();
     let init = &response(1)["result"];
-    assert_eq!(init["serverInfo"], go["initialize"]["serverInfo"]);
+    // Same server name as Go; the version tracks Cargo.toml (Go's snapshot is from 0.1.0-dev).
+    assert_eq!(init["serverInfo"]["name"], go["initialize"]["serverInfo"]["name"]);
+    assert_eq!(init["serverInfo"]["version"], env!("CARGO_PKG_VERSION"));
     let pick = |tools: &Value| -> Vec<Value> {
         let mut list: Vec<Value> = tools.as_array().unwrap().iter().map(|tool| {
             json!({"name":tool["name"],"description":tool["description"],"inputSchema":tool["inputSchema"],"annotations":tool["annotations"]})

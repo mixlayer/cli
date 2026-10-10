@@ -29,6 +29,8 @@ fn go_snapshot(name: &str) -> Value {
 /// Drops values that depend on the machine (resolved paths).
 fn normalize(mut v: Value) -> Value {
     v["paths"] = Value::Null;
+    // The Go snapshots were taken from a 0.1.0-dev build; the version tracks Cargo.toml.
+    v["cli"]["version"] = Value::Null;
     v
 }
 
