@@ -748,6 +748,57 @@ fn mint_deletes_after_sigint_reaches_child_process_group() {
     assert_eq!(fake.seen().last().unwrap().method, "DELETE");
 }
 
+/// `docker stop`, `kill <pid>` and some CI runners signal only the parent.
+/// It must pass SIGTERM to the child and still delete the key.
+#[test]
+#[cfg(unix)]
+fn mint_forwards_sigterm_sent_only_to_the_parent() {
+    use std::time::{Duration, Instant};
+
+    let home = tempfile::tempdir().unwrap();
+    let fake = Fake::start(&[
+        one_org(),
+        (
+            "POST",
+            "/v1/organizations/org_test/api_keys",
+            200,
+            json!({"data": {"id": "mint_term", "key": NEW_SECRET}}),
+        ),
+        (
+            "DELETE",
+            "/v1/organizations/org_test/api_keys/mint_term",
+            204,
+            Value::Null,
+        ),
+    ]);
+    let started = Instant::now();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mixlayer"))
+        .args(["keys", "mint", "--", "sh", "-c", "printf 'ready\\n'; exec sleep 30"])
+        .env_clear()
+        .env("HOME", home.path())
+        .env("MIXLAYER_HOME", home.path().join("mixlayer"))
+        .env("MIXLAYER_PLATFORM_URL", &fake.url)
+        .env("MIXLAYER_API_KEY", KEY)
+        .env("MIXLAYER_NO_AGENT_DETECT", "1")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut line = String::new();
+    BufReader::new(child.stdout.take().unwrap())
+        .read_line(&mut line)
+        .unwrap();
+    assert_eq!(line, "ready\n");
+    unsafe {
+        // The parent's PID only, not the process group.
+        libc::kill(child.id() as libc::pid_t, libc::SIGTERM);
+    }
+    let output = child.wait_with_output().unwrap();
+    assert!(started.elapsed() < Duration::from_secs(20), "child was not stopped");
+    assert_eq!(output.status.code(), Some(143), "{}", text(&output.stderr));
+    assert_eq!(fake.seen().last().unwrap().method, "DELETE");
+}
+
 #[test]
 fn mint_validates_before_sending_and_dry_run_does_not_send() {
     let home = tempfile::tempdir().unwrap();

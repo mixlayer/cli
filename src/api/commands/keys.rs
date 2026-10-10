@@ -198,7 +198,17 @@ pub fn mint(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
             Ok(())
         });
     }
-    let result = child.status();
+    let result = if MintSignals::terminated_before_start() {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Interrupted,
+            "terminated before the command started",
+        ))
+    } else {
+        child.spawn().and_then(|mut running| {
+            MintSignals::track(&running);
+            running.wait()
+        })
+    };
     let deletion = client.delete(&key_path(&org, &id));
     if deletion.is_ok() {
         if !g.quiet {
@@ -232,15 +242,56 @@ fn signal_exit_code(_: &std::process::ExitStatus) -> i32 {
 #[cfg(unix)]
 struct MintSignals(libc::sighandler_t, libc::sighandler_t);
 
+/// PID of the running `keys mint` child, for the SIGTERM handler (0 = none yet).
+#[cfg(unix)]
+static MINT_CHILD: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+/// SIGTERM arrived before the child started; don't start it.
+#[cfg(unix)]
+static MINT_TERM: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Supervisors (`docker stop`, `kill <pid>`, some CI runners) may signal only
+/// this process, so pass SIGTERM on to the child and stay alive to delete the
+/// key. `kill` and atomics are async-signal-safe.
+#[cfg(unix)]
+extern "C" fn forward_term(sig: libc::c_int) {
+    let pid = MINT_CHILD.load(std::sync::atomic::Ordering::SeqCst);
+    if pid > 0 {
+        unsafe {
+            libc::kill(pid, sig);
+        }
+    } else {
+        MINT_TERM.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 #[cfg(unix)]
 impl MintSignals {
     fn ignore() -> Self {
-        // The child resets these to their defaults; the parent keeps cleanup alive.
+        // SIGINT from a terminal already reaches the child through the process
+        // group, so the parent only ignores it. SIGTERM is forwarded. The
+        // child resets both to their defaults.
+        MINT_CHILD.store(0, std::sync::atomic::Ordering::SeqCst);
+        MINT_TERM.store(false, std::sync::atomic::Ordering::SeqCst);
         unsafe {
             Self(
                 libc::signal(libc::SIGINT, libc::SIG_IGN),
-                libc::signal(libc::SIGTERM, libc::SIG_IGN),
+                libc::signal(libc::SIGTERM, forward_term as *const () as libc::sighandler_t),
             )
+        }
+    }
+
+    fn terminated_before_start() -> bool {
+        MINT_TERM.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    fn track(child: &std::process::Child) {
+        MINT_CHILD.store(child.id() as i32, std::sync::atomic::Ordering::SeqCst);
+        // A SIGTERM between the check above and here would have been recorded
+        // but not forwarded.
+        if MINT_TERM.load(std::sync::atomic::Ordering::SeqCst) {
+            unsafe {
+                libc::kill(child.id() as libc::pid_t, libc::SIGTERM);
+            }
         }
     }
 }
@@ -252,6 +303,7 @@ impl Drop for MintSignals {
             libc::signal(libc::SIGINT, self.0);
             libc::signal(libc::SIGTERM, self.1);
         }
+        MINT_CHILD.store(0, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -266,6 +318,13 @@ impl MintSignals {
         unsafe { set_console_ctrl_handler(Some(mint_console_event), 1) };
         Self
     }
+
+    // Windows has no SIGTERM; console events reach the child directly.
+    fn terminated_before_start() -> bool {
+        false
+    }
+
+    fn track(_: &std::process::Child) {}
 }
 
 #[cfg(windows)]
