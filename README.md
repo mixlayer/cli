@@ -5,9 +5,11 @@
 [![CI](https://github.com/mixlayer/cli/actions/workflows/ci.yml/badge.svg)](https://github.com/mixlayer/cli/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-`mixlayer` brings [Mixlayer](https://mixlayer.com)'s models to your terminal and your coding agent. Ask anything, compare models on your own prompts, and see what every answer costs.
+The official command-line tool for [Mixlayer](https://mixlayer.com). Run open models like DeepSeek, Qwen and GLM from your terminal, see what every answer costs, and give your coding agent the same access. Written in Rust, with builds for macOS, Linux and Windows.
 
-**Your data stays yours.** Mixlayer runs with [zero data retention](https://docs.mixlayer.com/zero-data-retention) by default: requests are processed in memory, discarded after inference, and never used for training. Using other providers too? `shield` masks names, emails, companies and other personal data before a prompt leaves your machine, then restores them in the answer.
+```sh
+mixlayer ask "Explain the CAP theorem in two sentences"
+```
 
 ## Quick start
 
@@ -23,13 +25,15 @@ It works like any other model CLI from there. The rest of this page covers what 
 
 ## Beyond the API call
 
-**Shield personal data from any model.** `shield ask` swaps names, emails, phones, card numbers and IDs for placeholders, sends the masked prompt, and restores the real values on your machine. Point `--mask-columns` at the private fields in a CSV. A tripwire rescans every request and blocks it if anything personal slipped through, `shield scan` gates CI, and `shield audit` keeps a receipt for every send. It works with Mixlayer, OpenAI, Anthropic, OpenRouter or your own endpoint.
-
 **Pay for the model the question needs.** `escalate` starts on the cheapest model and moves up only when the answer is unsure. `compare` runs a cheap and a frontier model on your prompt and prices the difference, and `savings` totals what your real usage would have cost at frontier prices.
 
 **Compare models side by side.** `ladder` runs one prompt across several models and shows each answer with its latency, tokens and cost. `council` asks several models and has a judge reconcile them.
 
+**Run your account from the terminal.** `whoami` shows what your key can do, `keys mint` gives one job its own short-lived key, `spend --fail-over 5` stops a script when usage passes $5, `budget set` caps monthly spend, and `audit --follow` shows account changes as they happen.
+
 **Remember every run.** Each call lands in a local SQLite ledger. `grep` searches old answers, `replay` re-runs a prompt with the same model and seed to check drift, and `sql` queries your spend.
+
+**Mask private data for any model.** `shield ask` swaps names, emails, phone numbers and IDs for placeholders, sends the masked prompt, and restores the real values in the answer on your machine. It works with Mixlayer, OpenAI, Anthropic, OpenRouter or your own endpoint. Mixlayer itself runs with [zero data retention](https://docs.mixlayer.com/zero-data-retention) by default.
 
 ### Built for agents
 
@@ -43,7 +47,7 @@ Give your agent the Mixlayer skill so it knows how to use the CLI:
 | Any of the above, plus the MCP server | `mixlayer agent setup --agent all --yes` |
 | Also let the agent manage your account (keys, usage, billing) | `mixlayer agent setup --agent claude-code --platform --yes` |
 
-Then ask your agent something like "use mixlayer to find which customers in customers.csv will churn, with names masked".
+Then ask your agent something like "use mixlayer to find the cheapest model that answers this prompt as well as GLM".
 
 `mixlayer agent setup` installs an Agent Skill and an MCP server into Claude Code, Codex, Cursor, Hermes or Claude Desktop, without writing your key into their config. Every command takes `--agent` (JSON on stdout, no prompts) and `--dry-run` (show the exact request without sending it), and returns [exit codes](#exit-codes) a script can branch on. `agent-context` lists every command and flag as JSON, and `which "compare models"` finds the right command for a task.
 
