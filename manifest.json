@@ -3,7 +3,7 @@
   "name": "mixlayer-mcp",
   "display_name": "Mixlayer",
   "version": "0.0.0",
-  "description": "Privacy-first Mixlayer CLI for OpenAI-compatible chat, local PII redaction and vaulting, reasoning-aware model ladders, live model catalog refresh, and ledger-backed cost proofs.",
+  "description": "Mixlayer's open models in your agent: ask DeepSeek, Qwen and GLM, compare models on your own prompt, and see what every answer costs.",
   "author": {
     "name": "Mixlayer"
   },
