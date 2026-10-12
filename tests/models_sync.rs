@@ -34,6 +34,8 @@ impl Feed {
             while !s.load(Ordering::SeqCst) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        stream.set_nonblocking(false).unwrap();
+                        stream.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
                         let mut reader = BufReader::new(&mut stream);
                         let mut request_line = String::new();
                         reader.read_line(&mut request_line).unwrap();
