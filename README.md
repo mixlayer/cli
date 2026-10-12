@@ -46,15 +46,21 @@ Give your agent the Mixlayer skill so it knows how to use the CLI:
 | Claude Code | `npx skills add mixlayer/cli --skill mixlayer -g -a claude-code -y` |
 | Codex, Cursor and others | `npx skills add mixlayer/cli --skill mixlayer -g -y` |
 | Any of the above, plus the MCP server | `mxl agent setup --agent all --yes` |
+| Use Mixlayer models in Codex, OpenCode or Hermes | `mxl models sync --agent all --yes` |
 | Also let the agent manage your account (keys, usage, billing) | `mxl agent setup --agent claude-code --platform --yes` |
 
 Then ask your agent something like "use mixlayer to find the cheapest model that answers this prompt as well as GLM".
 
 `mxl agent setup` installs an Agent Skill and an MCP server into Claude Code, Codex, Cursor, Hermes or Claude Desktop, without writing your key into their config. Every command takes `--agent` (JSON on stdout, no prompts) and `--dry-run` (show the exact request without sending it), and returns [exit codes](#exit-codes) a script can branch on. `agent-context` lists every command and flag as JSON, and `which "compare models"` finds the right command for a task.
 
+### Use Mixlayer models inside your agent
+
+Run `mxl models sync --agent all --yes` to register the current model list in your installed agent harnesses. Run it again when models change. For Codex, `mxl agent setup --agent codex --models --yes` also installs the skill and MCP server. Then start Codex with `codex --profile mixlayer`.
+
 ## Contents
 
 - [Install](#install)
+- [Use Mixlayer models inside your agent](#use-mixlayer-models-inside-your-agent)
 - [Get started](#get-started)
 - [Pick a model](#pick-a-model)
 - [Compare models and cut cost](#compare-models-and-cut-cost)

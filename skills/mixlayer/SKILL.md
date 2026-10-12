@@ -7,9 +7,9 @@ description: Use Mixlayer models and OpenAI-compatible calls; compare models, or
 
 ## If the CLI isn't installed yet
 
-This skill drives the `mixlayer` command. If `mxl version` fails, set it up before anything else:
+This skill drives the `mxl` command. If `mxl version` fails, set it up before anything else:
 
-1. Tell the user you're about to install the Mixlayer CLI, then on macOS or Linux run `curl -fsSL https://github.com/mixlayer/cli/releases/latest/download/install.sh | sh`. It checks the release checksums and puts `mixlayer` and `mxl-mcp` in `~/.local/bin`; add that to `PATH` if the installer says so. On Windows, download the archive from https://github.com/mixlayer/cli/releases/latest and put both binaries on `PATH`.
+1. Tell the user you're about to install the Mixlayer CLI, then on macOS or Linux run `curl -fsSL https://github.com/mixlayer/cli/releases/latest/download/install.sh | sh`. It checks the release checksums and puts `mxl` and `mxl-mcp` in `~/.local/bin`; add that to `PATH` if the installer says so. On Windows, download the archive from https://github.com/mixlayer/cli/releases/latest and put both binaries on `PATH`.
 2. The user needs an API key from https://console.mixlayer.com/app/api-keys (`mxl auth setup --launch` opens it). Ask them to export it as `MIXLAYER_API_KEY` or pipe it into `mxl auth set-token` themselves. Never ask them to paste the key into chat.
 3. Run `mxl doctor --json` and fix anything it reports before the first call.
 4. Optional, with the user's OK: `mxl agent setup --agent <claude-code|codex|cursor|hermes|claude-desktop> --yes` also adds the local MCP server to that agent.
@@ -17,6 +17,8 @@ This skill drives the `mixlayer` command. If `mxl version` fails, set it up befo
 - Authenticate through `MIXLAYER_API_KEY` in the environment. Never put a key on the command line or in an agent config.
 - Use `--agent` for noninteractive JSON and `--select` to limit fields. Inspect `--dry-run` before any command that sends data or spends credits.
 - Read available models and current prices with `mxl models list --live-prices --agent`; choose from that result. Never hard-code a model ID.
+- To use Mixlayer models as the agent's own models, preview `mxl models sync --agent all --dry-run`, then run `mxl models sync --agent all --yes` when the user wants registration. `mxl agent setup --agent codex --models --yes` installs the skill, MCP server and Codex model provider together. Codex users start with `codex --profile mixlayer`.
+- `mxl auth token` prints the raw API key for Codex's command-backed authentication. Do not run it as an agent or include its output in chat.
 - Check setup with `mxl doctor --json`; use `mxl which "capability" --json` to find commands. If doctor lists an `agent_skills` entry as `outdated`, this skill is older than the installed CLI: ask the user to run `mxl agent setup --yes`, since it edits their agent config.
 - Use `mxl ladder "question" --agent --dry-run` to compare answers, reasoning, latency, and cost across models. Use `mxl escalate "question" --agent --dry-run` when a cheap answer may be sufficient and a stronger model should be called only if needed.
 
