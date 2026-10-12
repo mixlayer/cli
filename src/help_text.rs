@@ -9,48 +9,48 @@ pub const HELP: &[(&str, &str, &str)] = &[
         r#"Outputs a machine-readable description of commands, flags, and auth so
 agents can introspect this CLI at runtime without parsing --help or
 reading source. Schema is versioned via schema_version."#,
-        r#"  mixlayer agent-context --pretty
-  mixlayer agent-context --agent"#,
+        r#"  mxl agent-context --pretty
+  mxl agent-context --agent"#,
     ),
     (
         r#"ask"#,
         r#""#,
-        r#"  mixlayer ask "Draft a migration plan" --model qwen/qwen3.6-35b-a3b --show-thinking --json"#,
+        r#"  mxl ask "Draft a migration plan" --model qwen/qwen3.6-35b-a3b --show-thinking --json"#,
     ),
-    (r#"auth logout"#, r#""#, r#"  mixlayer auth logout"#),
+    (r#"auth logout"#, r#""#, r#"  mxl auth logout"#),
     (
         r#"auth set-token"#,
         r#"Save an API key to the local credentials file (mode 0600).
 
 Pipe the key on stdin so it stays out of shell history and the process list:
 
-  pbpaste | mixlayer auth set-token
-  mixlayer auth set-token - < key.txt
+  pbpaste | mxl auth set-token
+  mxl auth set-token - < key.txt
 
 Passing the key as an argument also works but is not recommended."#,
-        r#"  pbpaste | mixlayer auth set-token"#,
+        r#"  pbpaste | mxl auth set-token"#,
     ),
     (
         r#"auth setup"#,
         r#""#,
-        r#"  mixlayer auth setup
-  mixlayer auth setup --launch"#,
+        r#"  mxl auth setup
+  mxl auth setup --launch"#,
     ),
-    (r#"auth status"#, r#""#, r#"  mixlayer auth status"#),
+    (r#"auth status"#, r#""#, r#"  mxl auth status"#),
     (
         r#"chat"#,
         r#"Create a chat completion for the given model and messages"#,
-        r#"  mixlayer chat --model qwen/qwen3"#,
+        r#"  mxl chat --model qwen/qwen3"#,
     ),
     (
         r#"compare"#,
         r#""#,
-        r#"  mixlayer compare "Summarize this incident" --cheap qwen/qwen3.5-9b --json"#,
+        r#"  mxl compare "Summarize this incident" --cheap qwen/qwen3.5-9b --json"#,
     ),
     (
         r#"council"#,
         r#""#,
-        r#"  mixlayer council "Pick the safest launch plan" --json"#,
+        r#"  mxl council "Pick the safest launch plan" --json"#,
     ),
     (
         r#"decide"#,
@@ -61,8 +61,8 @@ Other exits: 2 invalid input/HTTP 422, 4 auth/permission, 5 API/capacity (529),
 7 rate limit (429), 8 billing (402), 10 configuration.
 Retries: at most three retries for 429/529; Retry-After above 30s returns immediately.
 Noul values are yes scores, not calibrated confidence probabilities."#,
-        r#"  mixlayer decide --model <classification-model> --state-text "Two charges for one order" --noul 'dup=Is this a duplicate charge?' --fail-if 'dup>0.8' --agent
-  mixlayer decide --model <classification-model> --state facts.json --questions questions.json --dry-run --agent"#,
+        r#"  mxl decide --model <classification-model> --state-text "Two charges for one order" --noul 'dup=Is this a duplicate charge?' --fail-if 'dup>0.8' --agent
+  mxl decide --model <classification-model> --state facts.json --questions questions.json --dry-run --agent"#,
     ),
     (
         r#"decide batch"#,
@@ -76,28 +76,28 @@ Dry run prints the first request and row count without opening --out or calling 
     (
         r#"doctor"#,
         r#""#,
-        r#"  mixlayer doctor
-  mixlayer doctor --json
-  mixlayer doctor --fail-on warn
-  mixlayer doctor --fail-on stale"#,
+        r#"  mxl doctor
+  mxl doctor --json
+  mxl doctor --fail-on warn
+  mxl doctor --fail-on stale"#,
     ),
     (
         r#"escalate"#,
         r#""#,
-        r#"  mixlayer escalate "Classify these tickets" --confidence 0.85 --json"#,
+        r#"  mxl escalate "Classify these tickets" --confidence 0.85 --json"#,
     ),
-    (r#"grep"#, r#""#, r#"  mixlayer grep "migration" --limit 10 --json"#),
+    (r#"grep"#, r#""#, r#"  mxl grep "migration" --limit 10 --json"#),
     (
         r#"ladder"#,
         r#""#,
-        r#"  mixlayer ladder "Which option is cheapest?" --reasoning --json"#,
+        r#"  mxl ladder "Which option is cheapest?" --reasoning --json"#,
     ),
-    (r#"models get"#, r#""#, r#"  mixlayer models get qwen/qwen3.5-9b"#),
-    (r#"models list"#, r#""#, r#"  mixlayer models list"#),
+    (r#"models get"#, r#""#, r#"  mxl models get qwen/qwen3.5-9b"#),
+    (r#"models list"#, r#""#, r#"  mxl models list"#),
     (
         r#"models query"#,
         r#""#,
-        r#"  mixlayer models query "ctx>=128k tools reasoning" --json"#,
+        r#"  mxl models query "ctx>=128k tools reasoning" --json"#,
     ),
     (
         r#"profile"#,
@@ -117,14 +117,14 @@ Explicit flags override profile values."#,
     (
         r#"profile delete"#,
         r#""#,
-        r#"  mixlayer profile delete my-defaults --yes
-  mixlayer profile delete old-profile --yes --json"#,
+        r#"  mxl profile delete my-defaults --yes
+  mxl profile delete old-profile --yes --json"#,
     ),
     (
         r#"profile list"#,
         r#""#,
-        r#"  mixlayer profile list
-  mixlayer profile list --json"#,
+        r#"  mxl profile list
+  mxl profile list --json"#,
     ),
     (
         r#"profile save"#,
@@ -135,83 +135,83 @@ entry is replaced.
 To avoid creating empty profiles, at least one non-default flag must be
 present (other than --profile, --config, and --home, which are never
 captured: they control profile/config resolution and would never apply)."#,
-        r#"  mixlayer profile save my-defaults --json --compact
-  mixlayer profile save tonight-defaults --region US"#,
+        r#"  mxl profile save my-defaults --json --compact
+  mxl profile save tonight-defaults --region US"#,
     ),
     (
         r#"profile show"#,
         r#""#,
-        r#"  mixlayer profile show my-defaults
-  mixlayer profile show tonight-defaults --json"#,
+        r#"  mxl profile show my-defaults
+  mxl profile show tonight-defaults --json"#,
     ),
     (
         r#"profile use"#,
         r#""#,
-        r#"  mixlayer profile use my-defaults
-  mixlayer profile use tonight-defaults --json"#,
+        r#"  mxl profile use my-defaults
+  mxl profile use tonight-defaults --json"#,
     ),
-    (r#"replay"#, r#""#, r#"  mixlayer replay run_abc123 --json"#),
-    (r#"savings"#, r#""#, r#"  mixlayer savings --vs gpt-frontier --json"#),
+    (r#"replay"#, r#""#, r#"  mxl replay run_abc123 --json"#),
+    (r#"savings"#, r#""#, r#"  mxl savings --vs gpt-frontier --json"#),
     (
         r#"shield ask"#,
         r#""#,
-        r#"  mixlayer shield ask "What segments are at risk?" --data customer-export.csv --json"#,
+        r#"  mxl shield ask "What segments are at risk?" --data customer-export.csv --json"#,
     ),
-    (r#"shield audit"#, r#""#, r#"  mixlayer shield audit --limit 25 --json"#),
+    (r#"shield audit"#, r#""#, r#"  mxl shield audit --limit 25 --json"#),
     (
         r#"shield dict add"#,
         r#""#,
-        r#"  mixlayer shield dict add "Zora Quill" --kind PERSON"#,
+        r#"  mxl shield dict add "Zora Quill" --kind PERSON"#,
     ),
-    (r#"shield dict list"#, r#""#, r#"  mixlayer shield dict list --agent"#),
+    (r#"shield dict list"#, r#""#, r#"  mxl shield dict list --agent"#),
     (
         r#"shield dict remove"#,
         r#""#,
-        r#"  mixlayer shield dict remove "Zora Quill""#,
+        r#"  mxl shield dict remove "Zora Quill""#,
     ),
     (
         r#"shield eval"#,
         r#""#,
-        r#"  mixlayer shield eval --sample testdata/shield-eval/synthetic.jsonl --detector regex --min-recall 0 --agent"#,
+        r#"  mxl shield eval --sample testdata/shield-eval/synthetic.jsonl --detector regex --min-recall 0 --agent"#,
     ),
     (
         r#"shield ingest"#,
         r#""#,
-        r#"  mixlayer shield ingest big-export.csv -o masked-corpus.csv --manifest tranches.json"#,
+        r#"  mxl shield ingest big-export.csv -o masked-corpus.csv --manifest tranches.json"#,
     ),
     (
         r#"shield redact"#,
         r#""#,
-        r#"  mixlayer shield redact customer-export.csv --diff -o masked.csv"#,
+        r#"  mxl shield redact customer-export.csv --diff -o masked.csv"#,
     ),
     (
         r#"shield restructure"#,
         r#""#,
-        r#"  mixlayer shield restructure customers.csv --bucket --coarsen-dates month --drop email -o safe.csv"#,
+        r#"  mxl shield restructure customers.csv --bucket --coarsen-dates month --drop email -o safe.csv"#,
     ),
     (
         r#"shield scan"#,
         r#""#,
-        r#"  mixlayer shield scan customer-export.csv --max-risk 0 --json"#,
+        r#"  mxl shield scan customer-export.csv --max-risk 0 --json"#,
     ),
     (
         r#"sql"#,
         r#""#,
-        r#"  mixlayer sql "select model, count(*) from runs group by model" --json"#,
+        r#"  mxl sql "select model, count(*) from runs group by model" --json"#,
     ),
-    (r#"vault list"#, r#""#, r#"  mixlayer vault list --json"#),
-    (r#"vault purge"#, r#""#, r#"  mixlayer vault purge --yes --json"#),
+    (r#"vault list"#, r#""#, r#"  mxl vault list --json"#),
+    (r#"vault purge"#, r#""#, r#"  mxl vault purge --yes --json"#),
     (
         r#"vault rehydrate"#,
         r#""#,
-        r#"  mixlayer vault rehydrate masked-answer.txt"#,
+        r#"  mxl vault rehydrate masked-answer.txt"#,
     ),
-    (r#"vault rotate"#, r#""#, r#"  mixlayer vault rotate --json"#),
+    (r#"vault rotate"#, r#""#, r#"  mxl vault rotate --json"#),
     (
         r#"version"#,
         r#""#,
-        r#"  mixlayer version
-  mixlayer version --agent"#,
+        r#"  mxl version
+  mxl version --agent"#,
     ),
     (
         r#"which"#,
@@ -220,10 +220,10 @@ captured: they control profile/config resolution and would never apply)."#,
 Exit codes:
   0  at least one match found
   2  no confident match - the query did not score against any indexed capability; fall back to '--help' or 'search' if this CLI has one"#,
-        r#"  mixlayer which "stale tickets"
-  mixlayer which "bottleneck"
-  mixlayer which --limit 1 "send message"
-  mixlayer which                                # list the full capability index"#,
+        r#"  mxl which "stale tickets"
+  mxl which "bottleneck"
+  mxl which --limit 1 "send message"
+  mxl which                                # list the full capability index"#,
     ),
 ];
 
@@ -231,8 +231,8 @@ Exit codes:
 pub const HELP_JINI: &[(&str, &str, &str)] = &[(
     r#"escalate"#,
     r#""#,
-    r#"  mixlayer escalate "Classify these tickets" --confidence 0.85 --json
-  mixlayer escalate "Explain this result" --checker jini --checker-model <classification-model> --threshold 0.8 --agent"#,
+    r#"  mxl escalate "Classify these tickets" --confidence 0.85 --json
+  mxl escalate "Explain this result" --checker jini --checker-model <classification-model> --threshold 0.8 --agent"#,
 )];
 
 pub fn lookup(path: &str, jini: bool) -> Option<(&'static str, &'static str)> {

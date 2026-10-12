@@ -6,15 +6,15 @@ rust-version = "1.97"
 description = "The official command-line tool for Mixlayer: run open models like DeepSeek, Qwen and GLM from your terminal and your coding agent"
 license = "Apache-2.0"
 repository = "https://github.com/mixlayer/cli"
-default-run = "mixlayer"
+default-run = "mxl"
 
 [[bin]]
-name = "mixlayer"
+name = "mxl"
 path = "src/main.rs"
 
 [[bin]]
-name = "mixlayer-mcp"
-path = "src/bin/mixlayer-mcp.rs"
+name = "mxl-mcp"
+path = "src/bin/mxl-mcp.rs"
 
 [dependencies]
 anyhow = "1.0"

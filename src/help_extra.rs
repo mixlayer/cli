@@ -7,7 +7,7 @@
 pub const HELP: &[(&str, &str, &str)] = &[
     (
         r#"agent setup"#,
-        r#"Install the Mixlayer Agent Skill and the local mixlayer-mcp server into
+        r#"Install the Mixlayer Agent Skill and the local mxl-mcp server into
 Claude Code, Codex, Cursor, Hermes or Claude Desktop. Without --yes this only
 previews the changes.
 
@@ -20,11 +20,11 @@ MIXLAYER_API_KEY), never the key itself. If that variable is set, setup checks
 the key with one read-only Platform API request and reports the result.
 Supported for Claude Code, Codex and Cursor; Hermes and Claude Desktop are
 reported as unsupported."#,
-        r#"  mixlayer agent setup --agent claude-code
-  mixlayer agent setup --agent all --yes
-  mixlayer agent setup --agent claude-code --platform --yes
-  mixlayer agent setup --agent codex --platform --key-env MIXLAYER_PLATFORM_KEY --yes
-  mixlayer agent setup --agent all --uninstall --yes"#,
+        r#"  mxl agent setup --agent claude-code
+  mxl agent setup --agent all --yes
+  mxl agent setup --agent claude-code --platform --yes
+  mxl agent setup --agent codex --platform --key-env MIXLAYER_PLATFORM_KEY --yes
+  mxl agent setup --agent all --uninstall --yes"#,
     ),
     (
         r#"keys"#,
@@ -32,10 +32,10 @@ reported as unsupported."#,
 organization API key endpoints. Listing needs a key with api-read;
 creating, rotating and deleting need api-admin. If your key can see more than
 one organization, pass --org."#,
-        r#"  mixlayer keys list
-  mixlayer keys create --name ci --permissions inference
-  mixlayer keys create --name claude-code --permissions inference,api-read --save
-  mixlayer keys rotate <key-id> --yes"#,
+        r#"  mxl keys list
+  mxl keys create --name ci --permissions inference
+  mxl keys create --name claude-code --permissions inference,api-read --save
+  mxl keys rotate <key-id> --yes"#,
     ),
     (
         r#"keys create"#,
@@ -47,32 +47,32 @@ stores it in its credentials file (mode 0600) and prints no secret.
 Permissions, as in the console: inference runs models; api-read reads the
 management API; api-write also writes to it; api-admin also manages billing,
 organizations and API keys. Default: inference."#,
-        r#"  mixlayer keys create --name ci --permissions inference
-  mixlayer keys create --name agent --permissions inference,api-read --expires-at 2027-01-01T00:00:00Z
-  mixlayer keys create --name laptop --save
-  mixlayer keys create --name ci --dry-run"#,
+        r#"  mxl keys create --name ci --permissions inference
+  mxl keys create --name agent --permissions inference,api-read --expires-at 2027-01-01T00:00:00Z
+  mxl keys create --name laptop --save
+  mxl keys create --name ci --dry-run"#,
     ),
     (
         r#"keys delete"#,
         r#"Delete an API key. Anything using it stops working; model calls can accept
 it for up to a minute while the gateway's key cache refreshes. Asks first;
 scripts and agents must pass --yes explicitly (--agent does not imply it here)."#,
-        r#"  mixlayer keys delete <key-id> --yes"#,
+        r#"  mxl keys delete <key-id> --yes"#,
     ),
     (
         r#"keys list"#,
         r#"List API keys with their names, permissions, active state and expiry.
 Secrets are never returned."#,
-        r#"  mixlayer keys list
-  mixlayer keys list --agent --select id,name,permissions"#,
+        r#"  mxl keys list
+  mxl keys list --agent --select id,name,permissions"#,
     ),
     (
         r#"keys rotate"#,
         r#"Give an API key a new secret, printed once. The old secret stops working;
 model calls can accept it for up to a minute while the gateway's key cache
 refreshes. Asks first; scripts and agents must pass --yes explicitly."#,
-        r#"  mixlayer keys rotate <key-id> --yes
-  mixlayer keys rotate <key-id> --yes --save"#,
+        r#"  mxl keys rotate <key-id> --yes
+  mxl keys rotate <key-id> --yes --save"#,
     ),
     (
         r#"keys mint"#,
@@ -81,8 +81,8 @@ environment variable, then delete the key. The server also expires it after
 --ttl even if this process stops. The child inherits stdin, stdout and stderr.
 Model calls may keep accepting a deleted key for up to a minute while the
 gateway's authorization cache refreshes."#,
-        r#"  mixlayer keys mint --ttl 30m -- sh -c 'mixlayer models list'
-  mixlayer keys mint --permissions inference --key-env JOB_KEY -- ./job"#,
+        r#"  mxl keys mint --ttl 30m -- sh -c 'mxl models list'
+  mxl keys mint --permissions inference --key-env JOB_KEY -- ./job"#,
     ),
     (
         r#"whoami"#,
@@ -90,31 +90,31 @@ gateway's authorization cache refreshes."#,
 which Platform API permissions it has. The secret is never shown. An
 inference-only key can still show its local ID and source, but cannot read
 its key record from the Platform API."#,
-        r#"  mixlayer whoami
-  mixlayer whoami --org <org-id> --agent"#,
+        r#"  mxl whoami
+  mxl whoami --org <org-id> --agent"#,
     ),
     (
         r#"spend"#,
         r#"Show usage spend for the current billing period or a recent range.
 --fail-over compares gross usage before credits in the chosen range and
 exits 9 when usage is greater than the given dollar amount."#,
-        r#"  mixlayer spend
-  mixlayer spend --range 30d --fail-over 5 --agent"#,
+        r#"  mxl spend
+  mxl spend --range 30d --fail-over 5 --agent"#,
     ),
     (
         r#"budget"#,
         r#"Show monthly spending controls and prepaid balance. A monthly
 limit pauses paid model traffic when reached. Use budget set to change a
 control; only the fields you pass are changed."#,
-        r#"  mixlayer budget
-  mixlayer budget show --org <org-id>
-  mixlayer budget set --monthly-limit 25 --warn-at 20 --yes"#,
+        r#"  mxl budget
+  mxl budget show --org <org-id>
+  mxl budget set --monthly-limit 25 --warn-at 20 --yes"#,
     ),
     (
         r#"budget show"#,
         r#"Show the monthly usage limit, warning, low-balance warning,
 cutoff state and, for prepaid accounts, credit balance."#,
-        r#"  mixlayer budget show --agent"#,
+        r#"  mxl budget show --agent"#,
     ),
     (
         r#"budget set"#,
@@ -122,9 +122,9 @@ cutoff state and, for prepaid accounts, credit balance."#,
 Values are positive dollars with at most two decimals; off disables a
 control. The monthly limit pauses paid model traffic when reached. Pass
 --yes explicitly, including in agent mode."#,
-        r#"  mixlayer budget set --monthly-limit 25 --warn-at 20 --yes
-  mixlayer budget set --monthly-limit off --yes
-  mixlayer budget set --warn-at 15 --dry-run"#,
+        r#"  mxl budget set --monthly-limit 25 --warn-at 20 --yes
+  mxl budget set --monthly-limit off --yes
+  mxl budget set --warn-at 15 --dry-run"#,
     ),
     (
         r#"audit"#,
@@ -132,8 +132,8 @@ control. The monthly limit pauses paid model traffic when reached. Pass
 action prefix, actor or resource type. --follow prints the initial page
 oldest first and polls for newer entries; with --json or --agent it emits
 one JSON object per line until Ctrl-C."#,
-        r#"  mixlayer audit --since 24h --action api_key.
-  mixlayer audit --follow --interval 5s"#,
+        r#"  mxl audit --since 24h --action api_key.
+  mxl audit --follow --interval 5s"#,
     ),
 ];
 

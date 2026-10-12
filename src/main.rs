@@ -205,9 +205,9 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
         ["agent", "skill-ref"] => output::write_stdout(skill::generated_command_reference().as_bytes()),
         ["version"] => {
             if g.json || g.agent {
-                output::print_json(&serde_json::json!({"name": "mixlayer", "version": cli::VERSION}), &g)
+                output::print_json(&serde_json::json!({"name": "mxl", "version": cli::VERSION}), &g)
             } else {
-                println!("mixlayer {}", cli::VERSION);
+                println!("mxl {}", cli::VERSION);
                 Ok(())
             }
         }
@@ -231,7 +231,7 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
                 other => return Err(exit::usage(format!("unsupported shell {other:?}"))),
             };
             let mut buf = Vec::new();
-            clap_complete::generate(shell, &mut cli::build(), "mixlayer", &mut buf);
+            clap_complete::generate(shell, &mut cli::build(), "mxl", &mut buf);
             output::write_stdout(&buf)
         }
         _ => {
@@ -261,7 +261,7 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
             }
             Err(exit::err(
                 Code::Other,
-                format!("`mixlayer {full}` is not available in the Rust build yet"),
+                format!("`mxl {full}` is not available in the Rust build yet"),
             ))
         }
     }
@@ -286,7 +286,7 @@ fn run_which(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
             return output::print_json(&serde_json::json!({"matches": []}), g);
         }
         return Err(exit::usage(format!(
-            "no match for {query:?}; try 'mixlayer --help' for the full command list"
+            "no match for {query:?}; try 'mxl --help' for the full command list"
         )));
     }
     render_which(matches, as_json, g)

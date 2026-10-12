@@ -16,7 +16,7 @@ pub fn build() -> Value {
     let dir = |k| paths::dir(k).map(|p| p.display().to_string()).unwrap_or_default();
     json!({
         "schema_version": SCHEMA_VERSION,
-        "cli": {"name": "mixlayer", "description": "CLI for mixlayer", "version": cli::VERSION},
+        "cli": {"name": "mxl", "description": "CLI for Mixlayer", "version": cli::VERSION},
         "auth": {
             "mode": "bearer_token",
             "env_vars": [{

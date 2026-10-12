@@ -23,5 +23,5 @@ jobs:
         working-directory: parity/e2e
         env:
           MIXLAYER_API_KEY: ${{ secrets.MIXLAYER_API_KEY }}
-          MIXLAYER_E2E_BIN: ${{ github.workspace }}/target/release/mixlayer
+          MIXLAYER_E2E_BIN: ${{ github.workspace }}/target/release/mxl
         run: go test -tags live -count=1 -v .

@@ -2,9 +2,9 @@
 
 Mixlayer's Platform API has a hosted [Model Context Protocol](https://modelcontextprotocol.io) server. Connect it to your coding agent and the agent can manage your Mixlayer organization for you: list and create API keys, check usage and spend, invite members, look at invoices and credits. You ask in plain language and skip the console.
 
-This is separate from `mixlayer-mcp`, the local MCP server that ships with the CLI. `mixlayer-mcp` runs models (ask, compare, shield). The Platform MCP server manages the account those models bill to.
+This is separate from `mxl-mcp`, the local MCP server that ships with the CLI. `mxl-mcp` runs models (ask, compare, shield). The Platform MCP server manages the account those models bill to.
 
-| | Local `mixlayer-mcp` | Hosted Platform MCP |
+| | Local `mxl-mcp` | Hosted Platform MCP |
 |---|---|---|
 | Runs | On your machine, over stdio | At `https://api.mixlayer.com/v1/mcp`, over streamable HTTP |
 | Does | Model calls, shield, ledger | Organizations, members, API keys, analytics, billing |
@@ -15,8 +15,8 @@ This is separate from `mixlayer-mcp`, the local MCP server that ships with the C
 One command registers it with your agent:
 
 ```sh
-mixlayer agent setup --agent claude-code --platform           # preview
-mixlayer agent setup --agent claude-code --platform --yes     # install
+mxl agent setup --agent claude-code --platform           # preview
+mxl agent setup --agent claude-code --platform --yes     # install
 ```
 
 `--platform` works with `claude-code`, `codex` and `cursor`. With `--agent all`, setup registers it for those three and reports Hermes and Claude Desktop as unsupported. Setup also installs the skill and the local server, the same as `agent setup` without `--platform`.
@@ -25,7 +25,7 @@ Setup never writes your key into the agent's config. It stores the name of an en
 
 ```sh
 export MIXLAYER_PLATFORM_KEY="..."   # in the shell profile your agent starts from
-mixlayer agent setup --agent codex --platform --key-env MIXLAYER_PLATFORM_KEY --yes
+mxl agent setup --agent codex --platform --key-env MIXLAYER_PLATFORM_KEY --yes
 ```
 
 If that variable is set in your shell, setup first checks the key with one read-only request (it lists your organizations) and reports the result:
@@ -37,7 +37,7 @@ If that variable is set in your shell, setup first checks the key with one read-
 | `no_platform_permission` | HTTP 403: the key can't read the Platform API. Give it `api-read` in the console. |
 | `rejected` | HTTP 401: the API didn't accept the key. Check that it's the whole key and still active. |
 
-To remove it, run `mixlayer agent setup --agent all --uninstall --yes`. That removes only what setup added.
+To remove it, run `mxl agent setup --agent all --uninstall --yes`. That removes only what setup added.
 
 ### Configure it by hand
 
@@ -77,7 +77,7 @@ Setup doesn't register the Platform server with Claude Desktop, because that wou
 
 ## Permissions
 
-The server authenticates with a Mixlayer API key and acts with that key's permissions. Pick them when you create the key, in the console or with `mixlayer keys create --permissions`:
+The server authenticates with a Mixlayer API key and acts with that key's permissions. Pick them when you create the key, in the console or with `mxl keys create --permissions`:
 
 | Permission | Allows |
 |---|---|
@@ -108,18 +108,18 @@ Every update and delete tool is marked destructive, and so are three others: rot
 The same key operations are in the CLI, for scripts and for people who'd rather not go through an agent:
 
 ```sh
-mixlayer keys list
-mixlayer keys create --name ci --permissions inference      # prints only the secret, once, on stdout
-mixlayer keys create --name laptop --save                    # stores it in the CLI's credentials file instead
-mixlayer keys rotate <key-id> --yes
-mixlayer keys delete <key-id> --yes
+mxl keys list
+mxl keys create --name ci --permissions inference      # prints only the secret, once, on stdout
+mxl keys create --name laptop --save                    # stores it in the CLI's credentials file instead
+mxl keys rotate <key-id> --yes
+mxl keys delete <key-id> --yes
 ```
 
 With `--json`, `create` and `rotate` print the whole key object, secret included. `rotate` and `delete` ask before they run. In a script or an agent you have to pass `--yes` yourself; `--agent` mode doesn't imply it for these two. After a rotate or delete, model calls can keep accepting the old secret for up to a minute while the gateway's key cache refreshes. If your key can see more than one organization, add `--org <id>`.
 
 ## Troubleshooting
 
-- Run `mixlayer whoami` to check the configured key's source, organization and permissions without showing its secret.
+- Run `mxl whoami` to check the configured key's source, organization and permissions without showing its secret.
 - **HTTP 401, "invalid authentication credentials"**: the API didn't accept the key it got. Check that the variable is exported in the environment the agent starts from, then restart the agent.
 - **HTTP 403**: the key lacks the permission that tool needs. Reading needs `api-read`; creating, rotating or deleting keys needs `api-admin`. Edit the key in the [console](https://console.mixlayer.com/app/api-keys).
-- **The agent can't find an organization ID**: start with the `list_organizations` tool, or `mixlayer keys list --org <id>` in the terminal.
+- **The agent can't find an organization ID**: start with the `list_organizations` tool, or `mxl keys list --org <id>` in the terminal.

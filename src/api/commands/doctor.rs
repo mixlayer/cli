@@ -152,7 +152,7 @@ pub fn run(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     if !skills.is_empty() {
         if skills.iter().any(|s| s["status"] == "outdated") {
             report["agent_skills_hint"] =
-                "An agent has an older Mixlayer skill than this CLI. Update it with: mixlayer agent setup --yes".into();
+                "An agent has an older Mixlayer skill than this CLI. Update it with: mxl agent setup --yes".into();
         }
         report["agent_skills"] = Value::Array(skills);
     }

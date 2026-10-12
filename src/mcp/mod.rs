@@ -532,7 +532,7 @@ fn has_trailing_sql_statement(query: &str) -> bool {
 }
 
 fn cli_path() -> anyhow::Result<PathBuf> {
-    let name = if cfg!(windows) { "mixlayer.exe" } else { "mixlayer" };
+    let name = if cfg!(windows) { "mxl.exe" } else { "mxl" };
     if let Ok(exe) = std::env::current_exe() {
         let sibling = exe.with_file_name(name);
         if sibling.is_file() {

@@ -15,7 +15,7 @@ pub fn setup(m: &ArgMatches) -> anyhow::Result<()> {
     println!("2. Put it in your environment:");
     println!("     export MIXLAYER_API_KEY=\"your-key\"");
     println!("3. Check it works:");
-    println!("     mixlayer doctor");
+    println!("     mxl doctor");
     if bool_arg(m, "launch") {
         #[cfg(target_os = "macos")]
         let mut cmd = std::process::Command::new("open");
@@ -44,7 +44,7 @@ pub fn set_token(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     } else {
         if std::io::stdin().is_terminal() {
             return Err(exit::usage(
-                "pipe the key on stdin, for example: pbpaste | mixlayer auth set-token",
+                "pipe the key on stdin, for example: pbpaste | mxl auth set-token",
             ));
         }
         let mut bytes = Vec::new();

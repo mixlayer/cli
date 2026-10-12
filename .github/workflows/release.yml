@@ -71,7 +71,7 @@ jobs:
           mkdir -p "$dir"
           ext=""
           if [ "$RUNNER_OS" = "Windows" ]; then ext=".exe"; fi
-          cp "target/${{ matrix.target }}/release/mixlayer$ext" "target/${{ matrix.target }}/release/mixlayer-mcp$ext" "$dir/"
+          cp "target/${{ matrix.target }}/release/mxl$ext" "target/${{ matrix.target }}/release/mxl-mcp$ext" "$dir/"
           cp README.md LICENSE CHANGELOG.md "$dir/"
           cd dist
           if [ "${{ matrix.archive }}" = "zip" ]; then

@@ -6,7 +6,7 @@ use std::process::Command;
 #[test]
 fn print_and_path_use_the_embedded_skill() {
     let home = tempfile::tempdir().unwrap();
-    let cli = env!("CARGO_BIN_EXE_mixlayer");
+    let cli = env!("CARGO_BIN_EXE_mxl");
     let printed = Command::new(cli)
         .args(["agent", "skill", "print"])
         .env("HOME", home.path())

@@ -208,7 +208,7 @@ fn cli(home: &std::path::Path, base: &str, args: &[&str]) -> Output {
     cli_env(home, base, args, &[])
 }
 fn cli_env(home: &std::path::Path, base: &str, args: &[&str], extra: &[(&str, &str)]) -> Output {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_mixlayer"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_mxl"));
     command
         .args(args)
         .env_clear()
