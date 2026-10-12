@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.0 (2026-10-12)
 
 - After a CLI upgrade, `mixlayer agent setup --yes` now updates the Agent Skill it installed earlier, instead of reporting `modified_skip` and leaving the old one. Copies you edited are still left alone (setup records a hash of what it wrote, so it can tell them apart), and uninstall removes an older unedited copy too. Skills installed by v0.1.0 are recognized. `mixlayer doctor` reports each installed skill as `current`, `outdated`, `modified` or `deleted`, and says how to update an outdated one.
 - `mixlayer agent setup --platform` registers Mixlayer's hosted Platform MCP server (`https://api.mixlayer.com/v1/mcp`) with Claude Code, Codex and Cursor, so an agent can manage organizations, members, API keys, analytics and billing. The agent config holds only the name of the environment variable with the key (`--key-env`, default `MIXLAYER_API_KEY`). If that variable is set, setup checks the key with one read-only request and reports whether the Platform API accepted it. Uninstall removes these entries too. See [docs/platform-mcp.md](docs/platform-mcp.md).
