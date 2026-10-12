@@ -5,6 +5,15 @@ description: Use Mixlayer models and OpenAI-compatible calls; compare models, or
 
 # Mixlayer agent rules
 
+## If the CLI isn't installed yet
+
+This skill drives the `mixlayer` command. If `mixlayer version` fails, set it up before anything else:
+
+1. Tell the user you're about to install the Mixlayer CLI, then on macOS or Linux run `curl -fsSL https://github.com/mixlayer/cli/releases/latest/download/install.sh | sh`. It checks the release checksums and puts `mixlayer` and `mixlayer-mcp` in `~/.local/bin`; add that to `PATH` if the installer says so. On Windows, download the archive from https://github.com/mixlayer/cli/releases/latest and put both binaries on `PATH`.
+2. The user needs an API key from https://console.mixlayer.com/app/api-keys (`mixlayer auth setup --launch` opens it). Ask them to export it as `MIXLAYER_API_KEY` or pipe it into `mixlayer auth set-token` themselves. Never ask them to paste the key into chat.
+3. Run `mixlayer doctor --json` and fix anything it reports before the first call.
+4. Optional, with the user's OK: `mixlayer agent setup --agent <claude-code|codex|cursor|hermes|claude-desktop> --yes` also adds the local MCP server to that agent.
+
 - Authenticate through `MIXLAYER_API_KEY` in the environment. Never put a key on the command line or in an agent config.
 - Use `--agent` for noninteractive JSON and `--select` to limit fields. Inspect `--dry-run` before any command that sends data or spends credits.
 - Read available models and current prices with `mixlayer models list --live-prices --agent`; choose from that result. Never hard-code a model ID.

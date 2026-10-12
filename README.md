@@ -42,6 +42,7 @@ Give your agent the Mixlayer skill so it knows how to use the CLI:
 | Agent | Install the skill |
 | --- | --- |
 | Hermes | `hermes skills install mixlayer/cli/skills/mixlayer` |
+| OpenClaw | Paste to your agent: "Install the Mixlayer skill from https://github.com/mixlayer/cli/tree/main/skills/mixlayer. The skill explains how to install the CLI." |
 | Claude Code | `npx skills add mixlayer/cli --skill mixlayer -g -a claude-code -y` |
 | Codex, Cursor and others | `npx skills add mixlayer/cli --skill mixlayer -g -y` |
 | Any of the above, plus the MCP server | `mixlayer agent setup --agent all --yes` |
