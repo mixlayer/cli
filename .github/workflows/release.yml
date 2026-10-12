@@ -42,6 +42,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.97.1
         with:
           targets: ${{ matrix.target }}
+          # Same components as rust-toolchain.toml, so rustup has nothing left
+          # to add mid-build (adding rustfmt during `cargo install` failed with
+          # "detected conflict: 'bin/cargo-fmt'" on the v0.2.0 tag build).
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
       - name: Install cargo-zigbuild (Linux cross targets)
         if: runner.os == 'Linux'
         run: |
