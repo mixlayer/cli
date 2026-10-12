@@ -1,7 +1,7 @@
 // Copyright 2026 Mixlayer Inc. Licensed under Apache-2.0. See LICENSE.
 use serde_json::{Value, json};
 use std::fs;
-use std::io::{Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::path::Path;
 use std::process::Command;
@@ -34,12 +34,19 @@ impl Feed {
             while !s.load(Ordering::SeqCst) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
-                        let mut request = [0_u8; 8192];
-                        let n = stream.read(&mut request).unwrap_or(0);
-                        let text = String::from_utf8_lossy(&request[..n]);
-                        let body = if text.contains("/_openrouter/models") {
+                        let mut reader = BufReader::new(&mut stream);
+                        let mut request_line = String::new();
+                        reader.read_line(&mut request_line).unwrap();
+                        loop {
+                            let mut line = String::new();
+                            if reader.read_line(&mut line).unwrap() == 0 || line == "\r\n" {
+                                break;
+                            }
+                        }
+                        drop(reader);
+                        let body = if request_line.contains("/_openrouter/models") {
                             m.lock().unwrap().to_string()
-                        } else if text.contains("/v1/models") {
+                        } else if request_line.contains("/v1/models") {
                             json!({"data":[{"id":"a/model"},{"id":"missing/model"}]}).to_string()
                         } else {
                             "[]".into()
