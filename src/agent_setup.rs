@@ -1186,9 +1186,10 @@ pub fn render_human(report: &Report, home: Option<&Path>, color: bool) -> String
             s.to_string()
         }
     };
-    let tidy = |p: &str| match home.map(|h| h.display().to_string()) {
-        Some(h) if !h.is_empty() && p.starts_with(&h) => format!("~{}", &p[h.len()..]),
-        _ => p.to_string(),
+    let tidy = |p: &str| match home.and_then(|h| Path::new(p).strip_prefix(h).ok()) {
+        Some(rest) if rest.as_os_str().is_empty() => "~".to_string(),
+        Some(rest) => format!("~{}{}", if p.contains('\\') { '\\' } else { '/' }, rest.display()),
+        None => p.to_string(),
     };
     let mut out = String::new();
     if report.dry_run {
@@ -1238,7 +1239,7 @@ pub fn render_human(report: &Report, home: Option<&Path>, color: bool) -> String
     }
     out.push('\n');
     if report.dry_run {
-        out.push_str("Run again with --yes to apply.\n");
+        out.push_str("Run again with --yes (and without --dry-run) to apply.\n");
     } else if warnings > 0 {
         out.push_str(&format!("Done, with {warnings} item(s) to check above.\n"));
     } else if report.uninstall {
@@ -1373,7 +1374,7 @@ mod human_tests {
         let text = render_human(&report, Some(Path::new("/home/u")), false);
         assert!(text.starts_with("Preview only: this is what setup would change. Nothing was written.\n\nCodex\n"));
         assert!(text.contains("  → Skill will be installed  ~/.codex/skills/mixlayer\n"));
-        assert!(text.ends_with("Run again with --yes to apply.\n"));
+        assert!(text.ends_with("Run again with --yes (and without --dry-run) to apply.\n"));
     }
 
     #[test]
@@ -1396,6 +1397,34 @@ mod human_tests {
         assert!(text.contains("Mixlayer Platform\n  ! API key missing\n    MIXLAYER_API_KEY is not set here.\n"));
         assert!(text.contains("  ! MCP server can't find mixlayer-mcp\n    run: claude mcp add"));
         assert!(text.ends_with("Done, with 2 item(s) to check above.\n"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn only_paths_inside_home_are_shortened() {
+        let report = Report {
+            dry_run: false,
+            uninstall: false,
+            actions: vec![
+                act(
+                    "cursor",
+                    "skill",
+                    Some("/home/u/.cursor/skills/mixlayer"),
+                    "installed",
+                    None,
+                ),
+                act(
+                    "cursor",
+                    "mcp",
+                    Some("/home/user2/.cursor/mcp.json"),
+                    "registered",
+                    None,
+                ),
+            ],
+        };
+        let text = render_human(&report, Some(Path::new("/home/u")), false);
+        assert!(text.contains("  ~/.cursor/skills/mixlayer\n"));
+        assert!(text.contains("  /home/user2/.cursor/mcp.json\n"), "{text}");
     }
 
     #[test]
