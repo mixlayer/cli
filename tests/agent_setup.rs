@@ -417,3 +417,27 @@ fn v0_1_0_hash() -> String {
     }
     hex::encode(h.finalize())
 }
+
+#[test]
+fn managed_legacy_mcp_entry_updates_to_new_binary_name() {
+    for agent in ["codex", "cursor"] {
+        let home = tempfile::tempdir().unwrap();
+        let binaries = tempfile::tempdir().unwrap();
+        let old = binaries.path().join("mixlayer-mcp");
+        let new = binaries.path().join("mxl-mcp");
+        executable(&old, "#!/bin/sh\nexit 0\n");
+        executable(&new, "#!/bin/sh\nexit 0\n");
+        let first = setup(home.path(), &old, agent, true, false, None).unwrap();
+        assert!(statuses(&first).contains(&"registered"));
+        let second = setup(home.path(), &new, agent, true, false, None).unwrap();
+        assert!(statuses(&second).contains(&"updated"), "{agent}: {second}");
+        let config = if agent == "codex" {
+            home.path().join(".codex/config.toml")
+        } else {
+            home.path().join(".cursor/mcp.json")
+        };
+        let contents = fs::read_to_string(config).unwrap();
+        assert!(contents.contains("mxl-mcp"));
+        assert!(!contents.contains("mixlayer-mcp"));
+    }
+}

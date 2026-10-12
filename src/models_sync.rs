@@ -100,7 +100,15 @@ fn config_path(agent: &str, home: &Path) -> PathBuf {
         "opencode" => opencode_dir(home).join("opencode.json"),
         "hermes" => hermes_dir(home).join("config.yaml"),
         "cursor" => home.join(".cursor"),
-        "claude-code" => home.join(".claude"),
+        "claude-code" => std::env::var_os("CLAUDE_CONFIG_DIR")
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.join(".claude")),
+        "claude-desktop" if cfg!(target_os = "macos") => home.join("Library/Application Support/Claude"),
+        "claude-desktop" if cfg!(windows) => std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.to_path_buf())
+            .join("Claude"),
         "claude-desktop" => home.join(".config/Claude"),
         _ => home.to_path_buf(),
     }
