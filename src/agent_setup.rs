@@ -1175,3 +1175,237 @@ fn read_claude_entry(path: &Path, name: &str) -> Result<Option<Value>> {
     let doc: Value = serde_json::from_slice(&fs::read(path)?).context("reading Claude MCP metadata")?;
     Ok(doc.get("mcpServers").and_then(|v| v.get(name)).cloned())
 }
+
+/// Human summary of a setup report, printed when stdout is a terminal and no
+/// machine output was asked for. Pipes, `--json` and agents still get JSON.
+pub fn render_human(report: &Report, home: Option<&Path>, color: bool) -> String {
+    let paint = |code: &str, s: &str| {
+        if color {
+            format!("\x1b[{code}m{s}\x1b[0m")
+        } else {
+            s.to_string()
+        }
+    };
+    let tidy = |p: &str| match home.map(|h| h.display().to_string()) {
+        Some(h) if !h.is_empty() && p.starts_with(&h) => format!("~{}", &p[h.len()..]),
+        _ => p.to_string(),
+    };
+    let mut out = String::new();
+    if report.dry_run {
+        let verb = if report.uninstall { "remove" } else { "change" };
+        out.push_str(&paint(
+            "2",
+            &format!("Preview only: this is what setup would {verb}. Nothing was written."),
+        ));
+        out.push_str("\n\n");
+    }
+    let mut last_agent = "";
+    let mut warnings = 0;
+    for a in &report.actions {
+        if a.agent != last_agent {
+            if !last_agent.is_empty() {
+                out.push('\n');
+            }
+            out.push_str(&paint("1", agent_label(&a.agent)));
+            out.push('\n');
+            last_agent = &a.agent;
+        }
+        let (mark, code) = match status_tone(&a.status) {
+            Tone::Done => ("✓", "32"),
+            Tone::Same => ("✓", "2"),
+            Tone::Pending => ("→", "36"),
+            Tone::Warn => {
+                warnings += 1;
+                ("!", "33")
+            }
+        };
+        let what = format!("{} {}", kind_label(&a.kind), status_label(&a.status));
+        out.push_str(&format!("  {} {what}", paint(code, mark)));
+        if let Some(p) = &a.path {
+            out.push_str(&format!("  {}", paint("2", &tidy(p))));
+        }
+        out.push('\n');
+        if let Some(note) = &a.note {
+            out.push_str(&format!("    {note}\n"));
+        }
+        if let Some(cmd) = a
+            .command
+            .as_ref()
+            .filter(|_| matches!(status_tone(&a.status), Tone::Warn))
+        {
+            out.push_str(&format!("    run: {cmd}\n"));
+        }
+    }
+    out.push('\n');
+    if report.dry_run {
+        out.push_str("Run again with --yes to apply.\n");
+    } else if warnings > 0 {
+        out.push_str(&format!("Done, with {warnings} item(s) to check above.\n"));
+    } else if report.uninstall {
+        out.push_str("Done. Mixlayer is removed from these agents.\n");
+    } else {
+        out.push_str("Done. Restart your agent to load Mixlayer.\n");
+    }
+    out
+}
+
+enum Tone {
+    Done,
+    Same,
+    Pending,
+    Warn,
+}
+
+fn status_tone(status: &str) -> Tone {
+    match status {
+        "installed" | "registered" | "updated" | "removed" | "deleted" | "restored" => Tone::Done,
+        "unchanged" | "current" => Tone::Same,
+        s if s.starts_with("would_") => Tone::Pending,
+        _ => Tone::Warn,
+    }
+}
+
+fn status_label(status: &str) -> String {
+    match status {
+        "unchanged" | "current" => "already set up".into(),
+        "manual_command" => "needs one manual step".into(),
+        "modified_skip" => "left alone (you edited it)".into(),
+        "conflict_skip" => "left alone (another server uses that name)".into(),
+        "not_managed" => "left alone (not added by Mixlayer)".into(),
+        "missing_binary" => "can't find mixlayer-mcp".into(),
+        "no_platform_permission" => "key lacks platform permissions".into(),
+        "unsupported" => "not supported here".into(),
+        "outdated" => "out of date".into(),
+        "rejected" => "rejected by the API".into(),
+        "error" => "failed".into(),
+        s => match s.strip_prefix("would_") {
+            Some(verb) => format!("will be {}", past_tense(verb)),
+            None => s.replace('_', " "),
+        },
+    }
+}
+
+fn past_tense(verb: &str) -> String {
+    match verb {
+        "install" => "installed".into(),
+        "register" => "registered".into(),
+        "update" => "updated".into(),
+        "remove" => "removed".into(),
+        "restore" => "restored".into(),
+        v => format!("{v}ed"),
+    }
+}
+
+fn agent_label(agent: &str) -> &str {
+    match agent {
+        "claude-code" => "Claude Code",
+        "claude-desktop" => "Claude Desktop",
+        "codex" => "Codex",
+        "cursor" => "Cursor",
+        "hermes" => "Hermes",
+        "platform" => "Mixlayer Platform",
+        other => other,
+    }
+}
+
+fn kind_label(kind: &str) -> &str {
+    match kind {
+        "skill" => "Skill",
+        "mcp" => "MCP server",
+        "platform-mcp" => "Platform MCP",
+        "platform-key" => "API key",
+        other => other,
+    }
+}
+
+#[cfg(test)]
+mod human_tests {
+    use super::*;
+
+    fn act(agent: &str, kind: &str, path: Option<&str>, status: &str, note: Option<&str>) -> Action {
+        Action {
+            agent: agent.into(),
+            kind: kind.into(),
+            path: path.map(Into::into),
+            status: status.into(),
+            command: Some("claude mcp add --scope user mixlayer -- /x/mixlayer-mcp".into()),
+            note: note.map(Into::into),
+        }
+    }
+
+    #[test]
+    fn applied_setup_reads_as_a_checklist() {
+        let report = Report {
+            dry_run: false,
+            uninstall: false,
+            actions: vec![
+                act(
+                    "claude-code",
+                    "skill",
+                    Some("/home/u/.claude/skills/mixlayer"),
+                    "installed",
+                    None,
+                ),
+                act("claude-code", "mcp", Some("/home/u/.claude.json"), "registered", None),
+            ],
+        };
+        let text = render_human(&report, Some(Path::new("/home/u")), false);
+        assert_eq!(
+            text,
+            "Claude Code\n  ✓ Skill installed  ~/.claude/skills/mixlayer\n  ✓ MCP server registered  ~/.claude.json\n\nDone. Restart your agent to load Mixlayer.\n"
+        );
+        assert!(!text.contains('{'), "no JSON for people");
+    }
+
+    #[test]
+    fn dry_run_says_nothing_changed_and_how_to_apply() {
+        let report = Report {
+            dry_run: true,
+            uninstall: false,
+            actions: vec![act(
+                "codex",
+                "skill",
+                Some("/home/u/.codex/skills/mixlayer"),
+                "would_install",
+                None,
+            )],
+        };
+        let text = render_human(&report, Some(Path::new("/home/u")), false);
+        assert!(text.starts_with("Preview only: this is what setup would change. Nothing was written.\n\nCodex\n"));
+        assert!(text.contains("  → Skill will be installed  ~/.codex/skills/mixlayer\n"));
+        assert!(text.ends_with("Run again with --yes to apply.\n"));
+    }
+
+    #[test]
+    fn problems_show_their_note_and_manual_command() {
+        let report = Report {
+            dry_run: false,
+            uninstall: false,
+            actions: vec![
+                act(
+                    "platform",
+                    "platform-key",
+                    None,
+                    "missing",
+                    Some("MIXLAYER_API_KEY is not set here."),
+                ),
+                act("claude-code", "mcp", None, "missing_binary", None),
+            ],
+        };
+        let text = render_human(&report, None, false);
+        assert!(text.contains("Mixlayer Platform\n  ! API key missing\n    MIXLAYER_API_KEY is not set here.\n"));
+        assert!(text.contains("  ! MCP server can't find mixlayer-mcp\n    run: claude mcp add"));
+        assert!(text.ends_with("Done, with 2 item(s) to check above.\n"));
+    }
+
+    #[test]
+    fn color_is_only_added_when_asked() {
+        let report = Report {
+            dry_run: false,
+            uninstall: false,
+            actions: vec![act("cursor", "skill", None, "installed", None)],
+        };
+        assert!(!render_human(&report, None, false).contains('\x1b'));
+        assert!(render_human(&report, None, true).contains("\x1b[32m✓\x1b[0m"));
+    }
+}

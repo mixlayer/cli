@@ -165,7 +165,16 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
                 uninstall: bool_flag("uninstall"),
                 platform,
             })?;
-            println!("{}", serde_json::to_string_pretty(&report)?);
+            let terminal = output::stdout_is_terminal();
+            if output::wants_human_table(&g, terminal) && !agent_detected() {
+                let color = !g.no_color
+                    && std::env::var("NO_COLOR").unwrap_or_default().is_empty()
+                    && std::env::var("TERM").as_deref() != Ok("dumb");
+                let home = paths::user_home();
+                print!("{}", agent_setup::render_human(&report, home.as_deref(), color));
+            } else {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            }
             Ok(())
         }
         ["agent", "skill", "print"] => output::write_stdout(skill::TEXT.as_bytes()),

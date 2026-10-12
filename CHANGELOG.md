@@ -3,6 +3,7 @@
 ## Unreleased
 
 - The Agent Skill now tells an agent how to install the CLI when it's missing (installer, API key, `doctor`), so an agent given only the skill (Hermes, OpenClaw, `npx skills add`) can finish setup itself. The README lists OpenClaw alongside the other agents.
+- `mixlayer agent setup` prints a readable checklist in a terminal (each agent, then ✓ installed / → will be installed / ! needs a step, with paths under `~`) instead of raw JSON, and says whether anything was written. Pipes, `--json`, `--agent` and detected agents still get the same JSON report as before.
 
 ## v0.2.0 (2026-10-12)
 
