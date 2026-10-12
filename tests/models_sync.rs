@@ -220,6 +220,42 @@ fn opencode_register_update_edit_and_uninstall() {
     inspect_no_key(home);
 }
 #[test]
+fn preview_without_yes_reads_feed_and_writes_nothing() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path();
+    let feed = Feed::new();
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    fs::create_dir_all(home.join(".config/opencode")).unwrap();
+    let report = run(home, &feed, &["models", "sync", "--agent", "all"]);
+    assert_eq!(report["dry_run"], true);
+    for agent in ["codex", "opencode"] {
+        let a = report["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|v| v["agent"] == agent)
+            .unwrap();
+        assert_eq!(a["status"], "would_register", "{agent}: {a}");
+        assert_eq!(a["added"], json!(["a/model"]), "{agent}: {a}");
+    }
+    assert!(!home.join(".codex/config.toml").exists());
+    assert!(!home.join(".codex/mixlayer.config.toml").exists());
+    assert!(!home.join(".config/opencode/opencode.json").exists());
+    // After a real sync, a preview against the same feed is "unchanged",
+    // and a new upstream model shows up as added.
+    run(home, &feed, &["models", "sync", "--agent", "codex", "--yes"]);
+    let again = run(home, &feed, &["models", "sync", "--agent", "codex"]);
+    assert_eq!(again["actions"][0]["status"], "unchanged", "{again}");
+    feed.add();
+    let grown = run(home, &feed, &["models", "sync", "--agent", "codex"]);
+    assert_eq!(grown["actions"][0]["status"], "would_update", "{grown}");
+    assert_eq!(grown["actions"][0]["added"], json!(["b/model"]), "{grown}");
+    let toml = fs::read_to_string(home.join(".codex/config.toml")).unwrap();
+    assert!(!toml.contains("b/model"));
+    let profile = fs::read_to_string(home.join(".codex/mixlayer.config.toml")).unwrap();
+    assert!(!profile.contains("b/model"));
+}
+#[test]
 fn dry_run_does_not_connect_or_write() {
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path();

@@ -23,7 +23,11 @@ const AGENTS: &[&str] = &["codex", "opencode", "hermes", "cursor", "claude-code"
 pub struct Options {
     pub agent: String,
     pub default_model: Option<String>,
+    /// Report what would change without writing anything.
     pub dry_run: bool,
+    /// Make no network call either (the global `--dry-run`). A plain preview
+    /// (no `--yes`) still reads the public model feed so it can show the diff.
+    pub offline: bool,
     pub uninstall: bool,
     pub force: bool,
 }
@@ -795,7 +799,7 @@ pub fn run(opts: Options) -> Result<Report> {
         actions: Vec::new(),
     };
     let cfg = config::load(None).map_err(|e| exit::err(Code::Config, e.to_string()))?;
-    let models = if opts.dry_run
+    let models = if opts.offline
         || opts.uninstall
         || targets
             .iter()
@@ -822,7 +826,7 @@ pub fn run(opts: Options) -> Result<Report> {
     for agent in targets {
         let path = config_path(agent, &home);
         let mut rec = managed(&state, agent);
-        if opts.dry_run && matches!(agent, "codex" | "opencode" | "hermes") {
+        if opts.dry_run && models.is_empty() && !opts.uninstall && matches!(agent, "codex" | "opencode" | "hermes") {
             action(
                 &mut report,
                 agent,
@@ -836,7 +840,7 @@ pub fn run(opts: Options) -> Result<Report> {
                 &path,
                 &rec.ids,
                 if opts.uninstall { &[] } else { &rec.ids },
-                Some("Preview only; no model feed fetched".into()),
+                Some("--dry-run skips the model feed; drop --dry-run to preview the model changes".into()),
                 None,
             );
             continue;

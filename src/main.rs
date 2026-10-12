@@ -170,6 +170,7 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
                     agent: name.clone(),
                     default_model: None,
                     dry_run: g.dry_run || !explicit_yes,
+                    offline: g.dry_run,
                     uninstall: bool_flag("uninstall"),
                     force: false,
                 })?)
@@ -206,6 +207,7 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
                 agent: name,
                 default_model: leaf.get_one::<String>("default-model").cloned(),
                 dry_run: g.dry_run || !yes,
+                offline: g.dry_run,
                 uninstall: bool_flag("uninstall"),
                 force: bool_flag("force"),
             })?;
