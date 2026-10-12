@@ -65,6 +65,8 @@ struct Entry {
     mcp_hash: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     mcp_snippet: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    models: Option<Value>,
 }
 
 fn is_false(v: &bool) -> bool {

@@ -17,6 +17,7 @@ pub fn dispatch(path: &[&str], m: &ArgMatches, g: &Globals) -> Option<anyhow::Re
     Some(match path {
         ["auth", "setup"] => auth::setup(m),
         ["auth", "set-token"] => auth::set_token(m, g),
+        ["auth", "token"] => auth::token(m),
         ["auth", "status"] => auth::status(m, g),
         ["auth", "logout"] => auth::logout(m, g),
         ["doctor"] => doctor::run(m, g),

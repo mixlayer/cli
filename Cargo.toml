@@ -31,6 +31,7 @@ rusqlite = { version = "0.37", features = ["bundled", "hooks"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 toml = "0.9"
+toml_edit = "0.25.13"
 url = "2"
 rmcp = { version = "3.5.1", default-features = false, features = ["server", "transport-io", "macros"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "process"] }

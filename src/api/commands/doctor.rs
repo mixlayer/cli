@@ -149,6 +149,7 @@ pub fn run(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         json!({"status": "unknown", "db_path": db, "hint": "Local ledger not created yet; it is created on the first ask, ladder or shield run."})
     };
     let skills = crate::agent_setup::managed_skill_report();
+    report["harnesses"] = crate::models_sync::doctor_report().into();
     if !skills.is_empty() {
         if skills.iter().any(|s| s["status"] == "outdated") {
             report["agent_skills_hint"] =
@@ -193,6 +194,17 @@ pub fn run(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
                     "  skill ({}): {}",
                     s["agent"].as_str().unwrap_or(""),
                     s["status"].as_str().unwrap_or("")
+                );
+            }
+        }
+        if let Some(harnesses) = report["harnesses"].as_array() {
+            for harness in harnesses {
+                println!(
+                    "  harness ({}): {} models, registered {}, differs from cached feed {}",
+                    harness["agent"].as_str().unwrap_or(""),
+                    harness["model_count"].as_u64().unwrap_or(0),
+                    harness["registered"].as_bool().unwrap_or(false),
+                    harness["differs_from_cached_feed"].as_bool().unwrap_or(false)
                 );
             }
         }

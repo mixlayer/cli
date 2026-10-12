@@ -71,6 +71,26 @@ pub fn set_token(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     }
 }
 
+pub fn token(m: &ArgMatches) -> anyhow::Result<()> {
+    if token_needs_reveal(std::io::stdout().is_terminal(), bool_arg(m, "reveal")) {
+        return Err(exit::usage(
+            "refusing to print the API key to a terminal; pass --reveal to continue",
+        ));
+    }
+    let cfg = config::load(arg(m, "config")).map_err(|e| exit::err(Code::Config, e.to_string()))?;
+    let key = cfg
+        .auth_header
+        .strip_prefix("Bearer ")
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| exit::err(Code::Auth, "no resolved API key configured"))?;
+    println!("{key}");
+    Ok(())
+}
+
+fn token_needs_reveal(stdout_is_terminal: bool, reveal: bool) -> bool {
+    stdout_is_terminal && !reveal
+}
+
 pub fn status(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let cfg = config::load(arg(m, "config")).map_err(|e| exit::err(Code::Config, e.to_string()))?;
     let present = !cfg.auth_header.is_empty();
@@ -116,5 +136,16 @@ pub fn logout(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
             println!("Logged out. Credentials cleared.");
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod token_tests {
+    use super::token_needs_reveal;
+    #[test]
+    fn terminal_requires_explicit_reveal() {
+        assert!(token_needs_reveal(true, false));
+        assert!(!token_needs_reveal(true, true));
+        assert!(!token_needs_reveal(false, false));
     }
 }

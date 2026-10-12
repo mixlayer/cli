@@ -6,7 +6,7 @@ Generated from the command table by `mxl agent skill-ref`. Do not edit manually.
 
 Preview or install the skill and MCP server for agents
 
-Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --key-env, --no-cache, --no-color, --no-input, --plain, --platform, --profile, --quiet, --rate-limit, --select, --timeout, --uninstall, --yes
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --key-env, --models, --no-cache, --no-color, --no-input, --plain, --platform, --profile, --quiet, --rate-limit, --select, --timeout, --uninstall, --yes
 
 ## `mxl agent skill path`
 
@@ -67,6 +67,12 @@ Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly,
 Show authentication status
 
 Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --yes
+
+## `mxl auth token`
+
+Print the resolved API key for command-backed authentication
+
+Flags: --agent, --compact, --config, --csv, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --reveal, --select, --timeout, --yes
 
 ## `mxl budget`
 
@@ -187,6 +193,12 @@ Flags: --agent, --compact, --config, --csv, --db, --dry-run, --home, --human-fri
 Query the model catalog cache with a small DSL
 
 Flags: --agent, --compact, --config, --csv, --db, --dry-run, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --refresh, --select, --timeout, --yes
+
+## `mxl models sync`
+
+Register the current Mixlayer models in agent harnesses
+
+Flags: --agent, --compact, --config, --csv, --default-model, --dry-run, --force, --home, --human-friendly, --json, --no-cache, --no-color, --no-input, --plain, --profile, --quiet, --rate-limit, --select, --timeout, --uninstall, --yes
 
 ## `mxl profile`
 
