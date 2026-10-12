@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The Agent Skill now tells an agent how to install the CLI when it's missing (installer, API key, `doctor`), so an agent given only the skill (Hermes, OpenClaw, `npx skills add`) can finish setup itself. The README lists OpenClaw alongside the other agents.
+
 ## v0.2.0 (2026-10-12)
 
 - After a CLI upgrade, `mixlayer agent setup --yes` now updates the Agent Skill it installed earlier, instead of reporting `modified_skip` and leaving the old one. Copies you edited are still left alone (setup records a hash of what it wrote, so it can tell them apart), and uninstall removes an older unedited copy too. Skills installed by v0.1.0 are recognized. `mixlayer doctor` reports each installed skill as `current`, `outdated`, `modified` or `deleted`, and says how to update an outdated one.
