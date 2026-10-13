@@ -3,7 +3,7 @@
 ## Unreleased
 
 - The command is now `mxl`; the MCP executable is `mxl-mcp`.
-- `mxl models sync` registers the current model list with Codex, OpenCode and Hermes; `mxl agent setup --models` includes provider registration. `mxl auth token` supports Codex's command-backed key lookup. `mxl doctor` reports harness registration.
+- `mxl models sync` registers the current model list with Codex, OpenCode and Hermes; `mxl agent setup --models` includes provider registration. For Codex it also writes a Mixlayer model catalog used only by the `mixlayer` profile, so `/model` lists Mixlayer models with their real context windows. `mxl auth token` supports Codex's command-backed key lookup. `mxl doctor` reports harness registration.
 
 ## v0.2.1 (2026-10-12)
 

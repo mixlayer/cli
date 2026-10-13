@@ -339,7 +339,7 @@ fn context() -> anyhow::Result<String> {
         "skill":crate::skill::TEXT,
         "description":"Mixlayer CLI: OpenAI-compatible model calls, model comparison, cost ledger and local PII masking",
         "paths":dirs,
-        "tool_surface":"Typed tools: chat_create_completion, models_list, models_get. Workflow tools: ask, ladder, escalate, shield_ask, shield_redact, shield_scan, shield_audit, grep, sql, savings, doctor. Workflow tools run the companion mixlayer binary.",
+        "tool_surface":"Typed tools: chat_create_completion, models_list, models_get. Workflow tools: ask, ladder, escalate, shield_ask, shield_redact, shield_scan, shield_audit, grep, sql, savings, doctor. Workflow tools run the companion mxl binary.",
         "auth":{"type":"bearer_token","env_vars":[{"name":"MIXLAYER_API_KEY","kind":"per_call","required":true,"sensitive":true,"description":"Mixlayer API key. The MCP server reads it from its own environment or the CLI credentials file; never pass it as a tool argument."}]},
         "query_tips":[
             "Call models_list first and pick model IDs from it; IDs and prices change.",
@@ -550,7 +550,7 @@ fn cli_path() -> anyhow::Result<PathBuf> {
             }
         }
     }
-    anyhow::bail!("companion mixlayer CLI not found: tried sibling lookup, MIXLAYER_CLI_PATH, and PATH")
+    anyhow::bail!("companion mxl CLI not found: tried sibling lookup, MIXLAYER_CLI_PATH, and PATH")
 }
 
 fn run_cli(args: &[String]) -> anyhow::Result<String> {

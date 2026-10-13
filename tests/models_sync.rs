@@ -256,6 +256,71 @@ fn preview_without_yes_reads_feed_and_writes_nothing() {
     assert!(!profile.contains("b/model"));
 }
 #[test]
+fn codex_catalog_lists_models_with_real_limits_and_keeps_default() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path();
+    let feed = Feed::new();
+    feed.add();
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    // The user picks the cheaper model as the profile default.
+    run(
+        home,
+        &feed,
+        &[
+            "models",
+            "sync",
+            "--agent",
+            "codex",
+            "--default-model",
+            "a/model",
+            "--yes",
+        ],
+    );
+    let catalog_path = home.join(".codex/mixlayer-models.json");
+    let catalog: Value = serde_json::from_slice(&fs::read(&catalog_path).unwrap()).unwrap();
+    let models = catalog["models"].as_array().unwrap();
+    assert_eq!(models.len(), 2);
+    // Default first, every model visible in /model, real context windows,
+    // Codex's own base instructions.
+    assert_eq!(models[0]["slug"], "a/model");
+    for m in models {
+        assert_eq!(m["visibility"], "list");
+        assert!(
+            m["base_instructions"]
+                .as_str()
+                .unwrap()
+                .starts_with("You are a coding agent running in the Codex CLI")
+        );
+    }
+    let b = models.iter().find(|m| m["slug"] == "b/model").unwrap();
+    assert_eq!(b["context_window"], 200000);
+    assert_eq!(b["max_context_window"], 200000);
+    assert!(b["description"].as_str().unwrap().contains("200K context"));
+    // The catalog is wired only into the mixlayer profile, never the base config.
+    let profile = fs::read_to_string(home.join(".codex/mixlayer.config.toml")).unwrap();
+    assert!(profile.contains("model = \"a/model\""), "{profile}");
+    assert!(profile.contains("model_catalog_json"), "{profile}");
+    assert!(!profile.contains("model_context_window"), "{profile}");
+    let base = fs::read_to_string(home.join(".codex/config.toml")).unwrap();
+    assert!(!base.contains("model_catalog_json"), "{base}");
+    // A later plain sync keeps the user's default instead of the priciest model.
+    let again = run(home, &feed, &["models", "sync", "--agent", "codex", "--yes"]);
+    assert_eq!(again["actions"][0]["status"], "unchanged", "{again}");
+    let profile = fs::read_to_string(home.join(".codex/mixlayer.config.toml")).unwrap();
+    assert!(profile.contains("model = \"a/model\""), "{profile}");
+    // An edited catalog is left alone; uninstall removes it.
+    fs::write(&catalog_path, "{\"models\":[]}\n").unwrap();
+    let edited = run(home, &feed, &["models", "sync", "--agent", "codex", "--yes"]);
+    assert_eq!(edited["actions"][0]["status"], "modified_skip", "{edited}");
+    run(
+        home,
+        &feed,
+        &["models", "sync", "--agent", "codex", "--uninstall", "--force", "--yes"],
+    );
+    assert!(!catalog_path.exists());
+    assert!(!home.join(".codex/mixlayer.config.toml").exists());
+}
+#[test]
 fn dry_run_does_not_connect_or_write() {
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path();
@@ -387,6 +452,35 @@ fn hermes_cli_registers_updates_and_uninstalls() {
         "set\nset\nunset\n"
     );
     inspect_no_key(home);
+    // A provider the user configured themselves is never claimed or removed.
+    let own = json!({"name":"Mine","api":"https://example.invalid/v1","models":{}});
+    fs::write(&path, own.to_string()).unwrap();
+    assert_eq!(
+        status(&invoke(&["models", "sync", "--agent", "hermes"])),
+        "conflict_skip"
+    );
+    assert_eq!(status(&invoke(&args)), "conflict_skip");
+    assert_eq!(
+        status(&invoke(&["models", "sync", "--agent", "hermes", "--uninstall"])),
+        "not_managed"
+    );
+    assert_eq!(
+        status(&invoke(&[
+            "models",
+            "sync",
+            "--agent",
+            "hermes",
+            "--uninstall",
+            "--yes"
+        ])),
+        "not_managed"
+    );
+    let kept: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(kept, own);
+    assert_eq!(
+        fs::read_to_string(home.join(".hermes/calls")).unwrap(),
+        "set\nset\nunset\n"
+    );
 }
 #[test]
 fn jsonc_is_left_alone_with_a_pasteable_provider() {

@@ -61,6 +61,10 @@ struct Managed {
     created: bool,
     profile_created: bool,
     ids: Vec<String>,
+    /// Codex only: hash of the generated model catalog (`mixlayer-models.json`).
+    catalog_hash: String,
+    /// Codex only: the profile's default model, kept across later syncs.
+    default_model: String,
 }
 
 #[derive(Clone, Debug)]
@@ -70,7 +74,99 @@ struct Model {
     context: u64,
     output: u64,
     tools: bool,
+    reasoning: bool,
+    /// Input modalities Codex understands (`text`, `image`).
+    modalities: Vec<String>,
     price: Option<f64>,
+}
+
+/// Codex's own base instructions for models it has no metadata for, copied
+/// unchanged from openai/codex (Apache-2.0). See `assets/codex/README.md`.
+const CODEX_BASE_INSTRUCTIONS: &str = include_str!("../assets/codex/prompt.md");
+const CODEX_CATALOG_FILE: &str = "mixlayer-models.json";
+
+fn format_tokens(n: u64) -> String {
+    if n >= 1000 {
+        format!("{}K", n / 1000)
+    } else {
+        n.to_string()
+    }
+}
+
+/// A Codex model catalog (`model_catalog_json`) for Mixlayer models. Each entry
+/// mirrors the metadata Codex falls back to for an unknown model
+/// (`model_info_from_slug` in codex-rs/models-manager), with the model's real
+/// context window, modalities and a description, and `visibility: list` so the
+/// models show in Codex's `/model` picker. The default model is listed first.
+fn codex_catalog(models: &[Model], default: &str) -> Value {
+    let mut ordered: Vec<&Model> = models.iter().collect();
+    ordered.sort_by(|a, b| {
+        (b.id == default)
+            .cmp(&(a.id == default))
+            .then(b.price.unwrap_or(0.0).total_cmp(&a.price.unwrap_or(0.0)))
+            .then(a.id.cmp(&b.id))
+    });
+    let entries: Vec<Value> = ordered
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            let mut features = vec![format!("{} context", format_tokens(m.context))];
+            if m.tools {
+                features.push("tools".into());
+            }
+            if m.reasoning {
+                features.push("reasoning".into());
+            }
+            if m.modalities.iter().any(|x| x == "image") {
+                features.push("images".into());
+            }
+            json!({
+                "slug": m.id,
+                "display_name": m.name,
+                "description": format!("Mixlayer · {}", features.join(" · ")),
+                "base_instructions": CODEX_BASE_INSTRUCTIONS,
+                "supported_reasoning_levels": [],
+                "shell_type": "unified_exec",
+                "visibility": "list",
+                "supported_in_api": true,
+                "priority": i as i64 + 1,
+                "availability_nux": null,
+                "upgrade": null,
+                "include_skills_usage_instructions": false,
+                "include_plugin_usage_instructions": false,
+                "include_apps_usage_instructions": false,
+                "default_reasoning_summary": "auto",
+                "support_verbosity": false,
+                "default_verbosity": null,
+                "apply_patch_tool_type": null,
+                "web_search_tool_type": "text",
+                "truncation_policy": {"mode": "bytes", "limit": 10000},
+                "supports_image_detail_original": false,
+                "context_window": m.context,
+                "max_context_window": m.context,
+                "effective_context_window_percent": 95,
+                "experimental_supported_tools": [],
+                "input_modalities": m.modalities,
+                "supports_search_tool": false,
+            })
+        })
+        .collect();
+    json!({ "models": entries })
+}
+
+fn modalities(item: &Value) -> Vec<String> {
+    let mut out: Vec<String> = item["input_modalities"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .filter(|m| matches!(*m, "text" | "image"))
+        .map(str::to_owned)
+        .collect();
+    if !out.iter().any(|m| m == "text") {
+        out.insert(0, "text".into());
+    }
+    out
 }
 
 fn hash(text: &str) -> String {
@@ -220,6 +316,10 @@ fn parse_feed(raw: &Value) -> Result<Vec<Model>> {
             tools: item["supported_features"]
                 .as_array()
                 .is_some_and(|f| f.iter().any(|x| x == "tools")),
+            reasoning: item["supported_features"]
+                .as_array()
+                .is_some_and(|f| f.iter().any(|x| x == "reasoning")),
+            modalities: modalities(item),
             price,
         });
     }
@@ -255,9 +355,11 @@ fn key_catalog() -> Result<Vec<Model>> {
         out.push(Model {
             id: id.into(),
             name: id.into(),
-            context: 131_072,
+            context: as_u64(&item["max_context_len"]).filter(|n| *n > 0).unwrap_or(131_072),
             output: 8_192,
             tools: item["tools_supported"].as_bool().unwrap_or(false),
+            reasoning: false,
+            modalities: modalities(&item),
             price: as_price(&item["price_m_output_tokens_usd"]),
         });
     }
@@ -366,6 +468,7 @@ fn codex(
     opts: &Options,
 ) -> Result<bool> {
     let profile = path.with_file_name("mixlayer.config.toml");
+    let catalog_path = path.with_file_name(CODEX_CATALOG_FILE);
     let original = read_optional(path)?.unwrap_or_default();
     let mut doc: DocumentMut = original
         .parse()
@@ -375,9 +478,12 @@ fn codex(
         .and_then(|v| v.get("mixlayer"))
         .map(ToString::to_string);
     let profile_current = read_optional(&profile)?;
+    let catalog_current = read_optional(&catalog_path)?;
     let edited = rec.installed
         && (current.as_deref().map(hash).as_deref() != Some(rec.hash.as_str())
-            || profile_current.as_deref().map(hash).as_deref() != Some(rec.profile_hash.as_str()));
+            || profile_current.as_deref().map(hash).as_deref() != Some(rec.profile_hash.as_str())
+            || (!rec.catalog_hash.is_empty()
+                && catalog_current.as_deref().map(hash).as_deref() != Some(rec.catalog_hash.as_str())));
     if edited && !opts.force {
         action(
             report,
@@ -420,12 +526,15 @@ fn codex(
         if rec.profile_created && profile.exists() {
             backup_remove(&profile)?;
         }
+        if !rec.catalog_hash.is_empty() && catalog_path.exists() {
+            fs::remove_file(&catalog_path).with_context(|| format!("removing {}", catalog_path.display()))?;
+        }
         let old = rec.ids.clone();
         *rec = Managed::default();
         action(report, "codex", "removed", path, &old, &[], None, None);
         return Ok(true);
     }
-    if (current.is_some() || profile_current.is_some()) && !rec.installed {
+    if (current.is_some() || profile_current.is_some() || catalog_current.is_some()) && !rec.installed {
         action(
             report,
             "codex",
@@ -458,15 +567,19 @@ fn codex(
         .iter()
         .find(|m| m.id == default)
         .context("default model unavailable")?;
+    let catalog_text = format!("{}\n", serde_json::to_string_pretty(&codex_catalog(models, default))?);
+    // The catalog replaces Codex's built-in model list, so it goes only in the
+    // mixlayer profile: the user's normal Codex setup keeps its own models.
     let profile_text = format!(
-        "model_provider = \"mixlayer\"\nmodel = {}\nmodel_context_window = {}\n",
+        "model_provider = \"mixlayer\"\nmodel = {}\nmodel_catalog_json = {}\n",
         serde_json::to_string(default)?,
-        selected.context
+        serde_json::to_string(&catalog_path.display().to_string())?,
     );
     let ids: Vec<_> = models.iter().map(|m| m.id.clone()).collect();
     if rec.installed
         && current.as_deref() == Some(block.as_str())
         && profile_current.as_deref() == Some(profile_text.as_str())
+        && catalog_current.as_deref() == Some(catalog_text.as_str())
     {
         action(report, "codex", "unchanged", path, &rec.ids, &ids, None, None);
         return Ok(false);
@@ -492,6 +605,7 @@ fn codex(
     let profile_created = !profile.exists();
     write_file(path, &rendered)?;
     write_file(&profile, &profile_text)?;
+    write_file(&catalog_path, &catalog_text)?;
     let old = rec.ids.clone();
     *rec = Managed {
         installed: true,
@@ -500,6 +614,8 @@ fn codex(
         created: rec.created || created,
         profile_created: rec.profile_created || profile_created,
         ids: ids.clone(),
+        catalog_hash: hash(&catalog_text),
+        default_model: selected.id.clone(),
     };
     action(
         report,
@@ -508,7 +624,7 @@ fn codex(
         path,
         &old,
         &ids,
-        Some("Use codex --profile mixlayer".into()),
+        Some("Use codex --profile mixlayer, then /model to switch Mixlayer models".into()),
         None,
     );
     Ok(true)
@@ -679,12 +795,32 @@ fn hermes(
         "hermes config set providers.mixlayer '{}'",
         mapping.to_string().replace('\'', "'\\''")
     );
+    let installed = Command::new("hermes")
+        .arg("--version")
+        .output()
+        .is_ok_and(|o| o.status.success());
+    // Read the current entry first, so a provider the user set up themselves
+    // is never claimed (and later removed) as ours.
+    let current: Option<Value> = if installed {
+        let got = Command::new("hermes")
+            .args(["config", "get", "providers.mixlayer", "--json"])
+            .output()?;
+        got.status
+            .success()
+            .then(|| serde_json::from_slice(&got.stdout).ok())
+            .flatten()
+    } else {
+        None
+    };
+    let foreign = current.is_some() && !rec.installed;
     if opts.dry_run {
         action(
             report,
             "hermes",
             if opts.uninstall {
-                "would_remove"
+                if rec.installed { "would_remove" } else { "not_managed" }
+            } else if foreign {
+                "conflict_skip"
             } else if rec.installed {
                 "would_update"
             } else {
@@ -693,15 +829,11 @@ fn hermes(
             path,
             &rec.ids,
             if opts.uninstall { &[] } else { &ids },
-            None,
-            Some(command),
+            foreign.then(|| "providers.mixlayer already exists in the Hermes config".into()),
+            (!foreign).then_some(command),
         );
         return Ok(false);
     }
-    let installed = Command::new("hermes")
-        .arg("--version")
-        .output()
-        .is_ok_and(|o| o.status.success());
     if !installed {
         action(
             report,
@@ -715,15 +847,24 @@ fn hermes(
         );
         return Ok(false);
     }
+    if opts.uninstall && !rec.installed {
+        action(report, "hermes", "not_managed", path, &[], &[], None, None);
+        return Ok(false);
+    }
+    if foreign {
+        action(
+            report,
+            "hermes",
+            "conflict_skip",
+            path,
+            &[],
+            &[],
+            Some("providers.mixlayer already exists in the Hermes config".into()),
+            None,
+        );
+        return Ok(false);
+    }
     if rec.installed {
-        let got = Command::new("hermes")
-            .args(["config", "get", "providers.mixlayer", "--json"])
-            .output()?;
-        let current: Option<Value> = got
-            .status
-            .success()
-            .then(|| serde_json::from_slice(&got.stdout).ok())
-            .flatten();
         if current.as_ref().map(|v| hash(&v.to_string())).as_deref() != Some(rec.hash.as_str()) && !opts.force {
             action(report, "hermes", "modified_skip", path, &rec.ids, &rec.ids, None, None);
             return Ok(false);
@@ -732,10 +873,6 @@ fn hermes(
             action(report, "hermes", "unchanged", path, &rec.ids, &ids, None, None);
             return Ok(false);
         }
-    }
-    if opts.uninstall && !rec.installed {
-        action(report, "hermes", "not_managed", path, &[], &[], None, None);
-        return Ok(false);
     }
     let output = if opts.uninstall {
         Command::new("hermes")
@@ -812,7 +949,14 @@ pub fn run(opts: Options) -> Result<Report> {
     let default = if models.is_empty() {
         String::new()
     } else {
-        choose_default(&models, opts.default_model.as_deref())?
+        // An explicit --default-model wins; otherwise keep the model the Codex
+        // profile already uses, as long as it is still offered.
+        let saved = managed(&state, "codex").default_model;
+        let requested = opts
+            .default_model
+            .as_deref()
+            .or_else(|| Some(saved.as_str()).filter(|s| !s.is_empty() && models.iter().any(|m| m.id == *s)));
+        choose_default(&models, requested)?
     };
     if !models.is_empty() && !opts.dry_run {
         write_file(

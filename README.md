@@ -55,7 +55,9 @@ Then ask your agent something like "use mixlayer to find the cheapest model that
 
 ### Use Mixlayer models inside your agent
 
-Run `mxl models sync --agent all --yes` to register the current model list in your installed agent harnesses. Run it again when models change. For Codex, `mxl agent setup --agent codex --models --yes` also installs the skill and MCP server. Then start Codex with `codex --profile mixlayer`.
+Run `mxl models sync --agent all` to see which models it would add to your installed agent harnesses (Codex, OpenCode, Hermes), then add `--yes` to write them. Run it again when models change. Your API key never goes into an agent's config.
+
+For Codex, `mxl agent setup --agent codex --models --yes` also installs the skill and MCP server. Start Codex with `codex --profile mixlayer` and use `/model` to switch between Mixlayer models; each one carries its real context window. Your normal `codex` setup and its models stay as they were.
 
 ## Contents
 
@@ -80,7 +82,7 @@ On macOS or Linux:
 curl -fsSL https://github.com/mixlayer/cli/releases/latest/download/install.sh | sh
 ```
 
-The script downloads the right build for your machine, checks it against the release checksums and puts `mixlayer` and `mxl-mcp` in `~/.local/bin` (set `MIXLAYER_INSTALL_DIR` to change that).
+The script downloads the right build for your machine, checks it against the release checksums and puts `mxl` and `mxl-mcp` in `~/.local/bin` (set `MIXLAYER_INSTALL_DIR` to change that).
 
 On Windows, or to install by hand, download the archive for your platform from [Releases](https://github.com/mixlayer/cli/releases), unpack it and put both binaries on your `PATH`. Builds cover macOS (Apple silicon and Intel), Linux (x86-64 and ARM64, statically linked) and Windows (x86-64 and ARM64).
 
