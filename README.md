@@ -33,6 +33,8 @@ It works like any other model CLI from there. The rest of this page covers what 
 
 **Remember every run.** Each call lands in a local SQLite ledger. `grep` searches old answers, `replay` re-runs a prompt with the same model and seed to check drift, and `sql` queries your spend.
 
+**Run your coding agent on Mixlayer models.** `models sync` adds Mixlayer's current models to Codex, OpenCode and Hermes, so the agent itself runs on GLM, DeepSeek or Qwen. In Codex they show up in `/model` with their real context windows.
+
 **Mask private data for any model.** `shield ask` swaps names, emails, phone numbers and IDs for placeholders, sends the masked prompt, and restores the real values in the answer on your machine. It works with Mixlayer, OpenAI, Anthropic, OpenRouter or your own endpoint. Mixlayer itself runs with [zero data retention](https://docs.mixlayer.com/zero-data-retention) by default.
 
 ### Built for agents
@@ -46,23 +48,16 @@ Give your agent the Mixlayer skill so it knows how to use the CLI:
 | Claude Code | `npx skills add mixlayer/cli --skill mixlayer -g -a claude-code -y` |
 | Codex, Cursor and others | `npx skills add mixlayer/cli --skill mixlayer -g -y` |
 | Any of the above, plus the MCP server | `mxl agent setup --agent all --yes` |
-| Use Mixlayer models in Codex, OpenCode or Hermes | `mxl models sync --agent all --yes` |
+| Run the agent itself on Mixlayer models (Codex, OpenCode, Hermes) | `mxl models sync --yes`, see [below](#use-mixlayer-models-inside-your-agent) |
 | Also let the agent manage your account (keys, usage, billing) | `mxl agent setup --agent claude-code --platform --yes` |
 
 Then ask your agent something like "use mixlayer to find the cheapest model that answers this prompt as well as GLM".
 
-`mxl agent setup` installs an Agent Skill and an MCP server into Claude Code, Codex, Cursor, Hermes or Claude Desktop, without writing your key into their config. Every command takes `--agent` (JSON on stdout, no prompts) and `--dry-run` (show the exact request without sending it), and returns [exit codes](#exit-codes) a script can branch on. `agent-context` lists every command and flag as JSON, and `which "compare models"` finds the right command for a task.
-
-### Use Mixlayer models inside your agent
-
-Run `mxl models sync --agent all` to see which models it would add to your installed agent harnesses (Codex, OpenCode, Hermes), then add `--yes` to write them. Run it again when models change. Your API key never goes into an agent's config.
-
-For Codex, `mxl agent setup --agent codex --models --yes` also installs the skill and MCP server. Start Codex with `codex --profile mixlayer` and use `/model` to switch between Mixlayer models; each one carries its real context window. Your normal `codex` setup and its models stay as they were.
+`mxl agent setup` installs an Agent Skill and an MCP server into Claude Code, Codex, Cursor, Hermes or Claude Desktop, without writing your key into their config. Commands take `--agent` (JSON on stdout, no prompts) and `--dry-run` (show the exact request without sending it), and return [exit codes](#exit-codes) a script can branch on. On `agent setup` and `models sync`, `--agent` names the agent to set up instead, so use `--json` there. `agent-context` lists every command and flag as JSON, and `which "compare models"` finds the right command for a task.
 
 ## Contents
 
 - [Install](#install)
-- [Use Mixlayer models inside your agent](#use-mixlayer-models-inside-your-agent)
 - [Get started](#get-started)
 - [Pick a model](#pick-a-model)
 - [Compare models and cut cost](#compare-models-and-cut-cost)
@@ -70,6 +65,7 @@ For Codex, `mxl agent setup --agent codex --models --yes` also installs the skil
 - [Your local ledger](#your-local-ledger)
 - [Scripts and CI](#scripts-and-ci)
 - [Coding agents and MCP](#coding-agents-and-mcp)
+- [Use Mixlayer models inside your agent](#use-mixlayer-models-inside-your-agent)
 - [Configuration](#configuration)
 - [Exit codes](#exit-codes)
 - [Development](#development)
@@ -98,10 +94,12 @@ Check the install:
 mxl version
 ```
 
+**Upgrading from v0.2?** The command is now `mxl` (it was `mixlayer`), and the MCP server is `mxl-mcp`. The installer replaces the old `mixlayer` and `mixlayer-mcp` with links to the new names, so existing scripts keep working. Run `mxl agent setup --agent all --yes` once so your agents use `mxl-mcp`. Your key, config and ledger stay where they were.
+
 For tab completion, add the script for your shell (`bash`, `zsh`, `fish` or `powershell`), for example:
 
 ```sh
-mxl completion zsh > "${fpath[1]}/_mixlayer"
+mxl completion zsh > "${fpath[1]}/_mxl"
 ```
 
 Every command and subcommand is listed in the [command reference](skills/mixlayer/references/commands.md), which is generated from the CLI itself. Add `--help` to any command for the details.
@@ -303,9 +301,9 @@ mxl keys rotate <key-id> --yes
 ### Your account from the terminal
 
 ```sh
-mxl whoami --agent                                  # key source, organization and permissions
-mxl keys mint --ttl 30m -- mxl models list      # give one job a temporary key
-mxl spend --range current --fail-over 5 --agent     # exit 9 when gross usage exceeds $5
+mxl whoami --agent                                # key source, organization and permissions
+mxl keys mint --ttl 30m -- mxl models list        # give one job a temporary key
+mxl spend --range current --fail-over 5 --agent   # exit 9 when gross usage exceeds $5
 mxl budget set --monthly-limit 25 --warn-at 20 --yes
 mxl audit --since 24h --follow
 ```
@@ -321,6 +319,33 @@ mxl agent skill print        # read the embedded skill
 ```
 
 To build the Claude Desktop bundle, run `scripts/mcpb.sh`.
+
+## Use Mixlayer models inside your agent
+
+`mxl agent setup` teaches an agent to call the CLI. `mxl models sync` goes further: it adds Mixlayer as a model provider, so the agent itself runs on Mixlayer models.
+
+```sh
+mxl models sync                # preview: which models each agent would get; writes nothing
+mxl models sync --yes          # add them
+mxl models sync --agent codex --default-model z-ai/glm-5.3 --yes
+mxl models sync --uninstall --yes
+```
+
+Without `--agent`, it updates every supported agent it finds on your machine. Run it again when Mixlayer adds models. `mxl doctor` lists which agents have Mixlayer models registered.
+
+| Agent | What it adds | Then |
+| --- | --- | --- |
+| Codex | A `mixlayer` provider, a `mixlayer` profile, and a model list that only that profile uses | `codex --profile mixlayer`, then `/model` to switch models. Plain `codex` keeps its usual models. |
+| OpenCode | A `mixlayer` provider with every model and its limits, in `~/.config/opencode/opencode.json` | Pick a `mixlayer/...` model in OpenCode, or `opencode run -m mixlayer/<model-id>` |
+| Hermes | A `mixlayer` provider, added with `hermes config set` | `hermes chat --provider mixlayer --model <model-id>`, or `/model` inside Hermes |
+| Cursor, Claude Code, Claude Desktop | Nothing; it prints setup steps | Claude clients need an Anthropic-compatible API, which Mixlayer doesn't offer yet |
+
+Your API key never goes into an agent's config:
+
+- **Codex** gets the key from `mxl` (`mxl auth token`), so a key in `MIXLAYER_API_KEY` or one saved with `mxl auth set-token` both work.
+- **OpenCode and Hermes** read `MIXLAYER_API_KEY`, so export it in the shell you start them from.
+
+`models sync` changes only the entries it added. It backs up each file before changing it, leaves your other providers and comments alone, and skips anything you've edited since (`--force` overrides that). It follows `CODEX_HOME`, `XDG_CONFIG_HOME` and `HERMES_HOME` if you've set them.
 
 ## Configuration
 
