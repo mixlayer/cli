@@ -37,6 +37,8 @@ pub struct Action {
     pub agent: String,
     pub status: String,
     pub path: String,
+    /// How many models the agent has (or would have) after this action.
+    pub models: usize,
     pub added: Vec<String>,
     pub removed: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -438,6 +440,7 @@ fn action(
         agent: agent.into(),
         status: status.into(),
         path: path.display().to_string(),
+        models: new.len(),
         added,
         removed,
         note,
@@ -1064,25 +1067,125 @@ pub fn doctor_report() -> Vec<Value> {
     }).collect()
 }
 
-pub fn render_human(report: &Report) -> String {
+/// Human summary, in the same checklist style as `agent setup`. Pipes,
+/// `--json` and agents still get the JSON report. `standalone` adds the
+/// preview banner and the closing line; `agent setup --models` prints its own.
+pub fn render_human(report: &Report, home: Option<&Path>, color: bool, standalone: bool) -> String {
+    let paint = |code: &str, s: &str| {
+        if color {
+            format!("\x1b[{code}m{s}\x1b[0m")
+        } else {
+            s.to_string()
+        }
+    };
+    let tidy = |p: &str| match home.and_then(|h| Path::new(p).strip_prefix(h).ok()) {
+        Some(rest) if rest.as_os_str().is_empty() => "~".to_string(),
+        Some(rest) => format!("~{}{}", if p.contains('\\') { '\\' } else { '/' }, rest.display()),
+        None => p.to_string(),
+    };
+    let label = |agent: &str| {
+        match agent {
+            "codex" => "Codex",
+            "opencode" => "OpenCode",
+            "hermes" => "Hermes",
+            "cursor" => "Cursor",
+            "claude-code" => "Claude Code",
+            "claude-desktop" => "Claude Desktop",
+            other => other,
+        }
+        .to_string()
+    };
+    let plural = |n: usize| {
+        if n == 1 {
+            "1 model".to_string()
+        } else {
+            format!("{n} models")
+        }
+    };
     let mut out = String::new();
-    for action in &report.actions {
-        out.push_str(&format!("{}: {}  {}\n", action.agent, action.status, action.path));
-        if !action.added.is_empty() {
-            out.push_str(&format!("  added: {}\n", action.added.join(", ")));
+    if report.dry_run && standalone {
+        out.push_str(&paint("2", "Preview only: nothing was written."));
+        out.push_str("\n\n");
+    }
+    let mut warnings = 0;
+    for a in &report.actions {
+        let n = plural(a.models);
+        let (mark, code, what) = match a.status.as_str() {
+            "registered" => ("✓", "32", format!("{n} added")),
+            "updated" => ("✓", "32", format!("Updated, {n}")),
+            "unchanged" => ("✓", "2", format!("Up to date, {n}")),
+            "removed" => ("✓", "32", "Removed".to_string()),
+            "would_register" => ("→", "36", format!("Would add {n}")),
+            "would_update" => ("→", "36", format!("Would update, {n}")),
+            "would_remove" => ("→", "36", "Would remove".to_string()),
+            "not_managed" => ("✓", "2", "Nothing to remove".to_string()),
+            "instructions" => ("!", "33", "Set up by hand".to_string()),
+            "not_installed" => ("!", "33", "Not installed".to_string()),
+            "conflict_skip" => (
+                "!",
+                "33",
+                "Skipped: it already has a mixlayer provider you set up".to_string(),
+            ),
+            "modified_skip" => (
+                "!",
+                "33",
+                "Skipped: edited since the last sync (--force replaces it)".to_string(),
+            ),
+            other => ("!", "33", other.to_string()),
+        };
+        if mark == "!" {
+            warnings += 1;
         }
-        if !action.removed.is_empty() {
-            out.push_str(&format!("  removed: {}\n", action.removed.join(", ")));
+        out.push_str(&paint("1", &label(&a.agent)));
+        out.push('\n');
+        out.push_str(&format!("  {} {what}", paint(code, mark)));
+        if !a.path.is_empty() && a.status != "instructions" {
+            out.push_str(&format!("  {}", paint("2", &tidy(&a.path))));
         }
-        if let Some(note) = &action.note {
-            out.push_str(&format!("  {note}\n"));
+        out.push('\n');
+        // On a first registration every model is "added"; listing them all
+        // repeats the count, so show the list only for real changes.
+        if !a.added.is_empty() && a.added.len() < a.models {
+            out.push_str(&format!("    {} {}\n", paint("32", "+"), a.added.join(", ")));
         }
-        if let Some(command) = &action.command {
-            out.push_str(&format!("  run: {command}\n"));
+        if !a.removed.is_empty() {
+            out.push_str(&format!("    {} {}\n", paint("31", "-"), a.removed.join(", ")));
+        }
+        let next = match (a.agent.as_str(), a.status.as_str()) {
+            ("codex", "registered" | "updated" | "unchanged") => {
+                Some("Start it with codex --profile mixlayer, then /model to switch.".to_string())
+            }
+            ("opencode", "registered" | "updated" | "unchanged") => {
+                Some("Pick a mixlayer/... model in OpenCode. It reads MIXLAYER_API_KEY.".to_string())
+            }
+            ("hermes", "registered" | "updated" | "unchanged") => {
+                Some("Run hermes chat --provider mixlayer. It reads MIXLAYER_API_KEY.".to_string())
+            }
+            _ => a.note.clone(),
+        };
+        if let Some(next) = next {
+            out.push_str(&format!("    {next}\n"));
+        }
+        if let Some(cmd) = a.command.as_ref().filter(|_| a.status == "not_installed") {
+            out.push_str(&format!("    run: {cmd}\n"));
         }
     }
     if report.actions.is_empty() {
-        out.push_str("No installed agent harnesses found.\n");
+        out.push_str("No supported agents found (Codex, OpenCode, Hermes).\n");
+        return out;
+    }
+    if !standalone {
+        return out;
+    }
+    out.push('\n');
+    if report.dry_run {
+        out.push_str("Run again with --yes to apply.\n");
+    } else if report.uninstall {
+        out.push_str("Done. Mixlayer models are removed from these agents.\n");
+    } else if warnings > 0 {
+        out.push_str(&format!("Done, with {warnings} item(s) to check above.\n"));
+    } else {
+        out.push_str("Done. Run it again when Mixlayer adds models.\n");
     }
     out
 }

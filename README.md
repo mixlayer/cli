@@ -188,7 +188,7 @@ Mixlayer doesn't keep your requests ([zero data retention](https://docs.mixlayer
 
 <p align="center"><img src="docs/images/demo.gif" alt="mxl shield ask ranks churn risk in a customer list while names, emails, phones and companies stay on the machine" width="100%"></p>
 
-That demo is a real run on a synthetic customer list ([docs/demo/customers.csv](docs/demo/customers.csv)). The model saw `CUSTOMER_e993684a` and `COMPANY_293a7f63`, never the real values, and the CLI put the names back into the answer locally.
+That demo is a real run on a synthetic customer list ([docs/demo/customers.csv](docs/demo/customers.csv)). The model saw only placeholders like `CUSTOMER_…` and `COMPANY_…`, never the real values, and the CLI put the names back into the answer locally.
 
 
 See exactly what the model will get, without sending anything:

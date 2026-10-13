@@ -358,6 +358,54 @@ fn models_without_text_input_are_skipped_and_missing_metadata_means_text() {
     assert!(by("img/only").is_none());
 }
 #[test]
+fn human_output_is_a_checklist_with_next_steps() {
+    use mixlayer::models_sync::{Action, Report, render_human};
+    let act = |agent: &str, status: &str, models: usize, added: &[&str]| Action {
+        agent: agent.into(),
+        status: status.into(),
+        path: format!("/home/u/.{agent}/config"),
+        models,
+        added: added.iter().map(|s| s.to_string()).collect(),
+        removed: vec![],
+        note: None,
+        command: None,
+    };
+    let report = Report {
+        dry_run: false,
+        uninstall: false,
+        actions: vec![
+            act("codex", "registered", 6, &["a", "b", "c", "d", "e", "f"]),
+            act("opencode", "updated", 7, &["g"]),
+        ],
+    };
+    let text = render_human(&report, Some(std::path::Path::new("/home/u")), false, true);
+    assert!(
+        text.starts_with("Codex\n  ✓ 6 models added  ~/.codex/config\n"),
+        "{text}"
+    );
+    // A first registration doesn't repeat every model; a later change lists it.
+    assert!(!text.contains("+ a, b"), "{text}");
+    assert!(
+        text.contains("OpenCode\n  ✓ Updated, 7 models  ~/.opencode/config\n    + g\n"),
+        "{text}"
+    );
+    assert!(text.contains("codex --profile mixlayer"), "{text}");
+    assert!(
+        text.ends_with("Done. Run it again when Mixlayer adds models.\n"),
+        "{text}"
+    );
+    // Inside `agent setup --models` there is no second closing line.
+    assert!(!render_human(&report, None, false, false).contains("Done."));
+    // Windows paths keep their own separator after the ~.
+    #[cfg(windows)]
+    {
+        let mut win = report.clone();
+        win.actions[0].path = r"C:\Users\u\.codex\config.toml".into();
+        let text = render_human(&win, Some(std::path::Path::new(r"C:\Users\u")), false, true);
+        assert!(text.contains(r"~\.codex\config.toml"), "{text}");
+    }
+}
+#[test]
 fn dry_run_does_not_connect_or_write() {
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path();

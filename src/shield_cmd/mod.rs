@@ -346,8 +346,20 @@ fn ask(m: &ArgMatches, g: &Globals) -> Result<()> {
         Vec::new()
     };
     if !g.json && !g.agent {
+        // Two short lines instead of one 118-character line, so the hint
+        // doesn't wrap mid-word in an 80-column terminal. JSON keeps the
+        // original single string.
         for warning in &warnings {
-            eprintln!("warning: {warning}");
+            let mut parts = warning.splitn(2, "; ");
+            eprintln!("warning: {}", parts.next().unwrap_or_default());
+            if let Some(rest) = parts.next() {
+                let mut chars = rest.chars();
+                let hint: String = chars
+                    .next()
+                    .map(|c| c.to_uppercase().chain(chars).collect())
+                    .unwrap_or_default();
+                eprintln!("  {hint}");
+            }
         }
     }
     if upstream.name == "mixlayer" {
