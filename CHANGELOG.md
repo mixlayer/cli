@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.3.0 (2026-10-13)
 
-- The command is now `mxl`; the MCP executable is `mxl-mcp`.
+- The command is now `mxl`; the MCP executable is `mxl-mcp`. Re-running the installer points an existing `mixlayer` or `mixlayer-mcp` at the new names, so agent configs from v0.2 keep working.
 - `mxl models sync` registers the current model list with Codex, OpenCode and Hermes; `mxl agent setup --models` includes provider registration. For Codex it also writes a Mixlayer model catalog used only by the `mixlayer` profile, so `/model` lists Mixlayer models with their real context windows. `mxl auth token` supports Codex's command-backed key lookup. `mxl doctor` reports harness registration.
+- In a terminal, `mxl models sync` prints a checklist like `agent setup`: each agent, how many models it has, the config path under `~`, and how to start it on Mixlayer. Pipes, `--json` and agents still get the JSON report, which now includes a `models` count per agent.
+- `mxl shield ask` prints its regex-detection warning as two short lines in a terminal. JSON output is unchanged.
 
 ## v0.2.1 (2026-10-12)
 
