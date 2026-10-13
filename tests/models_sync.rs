@@ -396,6 +396,14 @@ fn human_output_is_a_checklist_with_next_steps() {
     );
     // Inside `agent setup --models` there is no second closing line.
     assert!(!render_human(&report, None, false, false).contains("Done."));
+    // Windows paths keep their own separator after the ~.
+    #[cfg(windows)]
+    {
+        let mut win = report.clone();
+        win.actions[0].path = r"C:\Users\u\.codex\config.toml".into();
+        let text = render_human(&win, Some(std::path::Path::new(r"C:\Users\u")), false, true);
+        assert!(text.contains(r"~\.codex\config.toml"), "{text}");
+    }
 }
 #[test]
 fn dry_run_does_not_connect_or_write() {

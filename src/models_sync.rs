@@ -1080,7 +1080,7 @@ pub fn render_human(report: &Report, home: Option<&Path>, color: bool, standalon
     };
     let tidy = |p: &str| match home.and_then(|h| Path::new(p).strip_prefix(h).ok()) {
         Some(rest) if rest.as_os_str().is_empty() => "~".to_string(),
-        Some(rest) => format!("~/{}", rest.display()),
+        Some(rest) => format!("~{}{}", if p.contains('\\') { '\\' } else { '/' }, rest.display()),
         None => p.to_string(),
     };
     let label = |agent: &str| {
