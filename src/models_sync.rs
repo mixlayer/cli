@@ -154,19 +154,20 @@ fn codex_catalog(models: &[Model], default: &str) -> Value {
     json!({ "models": entries })
 }
 
-fn modalities(item: &Value) -> Vec<String> {
-    let mut out: Vec<String> = item["input_modalities"]
-        .as_array()
-        .into_iter()
-        .flatten()
+/// Input modalities Codex understands. A model with no modality metadata is
+/// assumed to take text; a model that lists its modalities without `text`
+/// can't hold an agent conversation, so it returns `None` and is skipped.
+fn modalities(item: &Value) -> Option<Vec<String>> {
+    let Some(listed) = item["input_modalities"].as_array() else {
+        return Some(vec!["text".into()]);
+    };
+    let out: Vec<String> = listed
+        .iter()
         .filter_map(Value::as_str)
         .filter(|m| matches!(*m, "text" | "image"))
         .map(str::to_owned)
         .collect();
-    if !out.iter().any(|m| m == "text") {
-        out.insert(0, "text".into());
-    }
-    out
+    out.iter().any(|m| m == "text").then_some(out)
 }
 
 fn hash(text: &str) -> String {
@@ -306,6 +307,9 @@ fn parse_feed(raw: &Value) -> Result<Vec<Model>> {
         let Some(id) = item.get("id").and_then(Value::as_str).filter(|s| !s.is_empty()) else {
             continue;
         };
+        let Some(modalities) = modalities(item) else {
+            continue;
+        };
         let pricing = &item["pricing"];
         let price = as_price(&pricing["completion"]).or_else(|| as_price(&pricing["output"]));
         out.push(Model {
@@ -319,7 +323,7 @@ fn parse_feed(raw: &Value) -> Result<Vec<Model>> {
             reasoning: item["supported_features"]
                 .as_array()
                 .is_some_and(|f| f.iter().any(|x| x == "reasoning")),
-            modalities: modalities(item),
+            modalities,
             price,
         });
     }
@@ -352,6 +356,9 @@ fn key_catalog() -> Result<Vec<Model>> {
         let Some(id) = item["model_sku"].as_str().filter(|s| !s.is_empty()) else {
             continue;
         };
+        let Some(modalities) = modalities(&item) else {
+            continue;
+        };
         out.push(Model {
             id: id.into(),
             name: id.into(),
@@ -359,7 +366,7 @@ fn key_catalog() -> Result<Vec<Model>> {
             output: 8_192,
             tools: item["tools_supported"].as_bool().unwrap_or(false),
             reasoning: false,
-            modalities: modalities(&item),
+            modalities,
             price: as_price(&item["price_m_output_tokens_usd"]),
         });
     }
@@ -527,7 +534,7 @@ fn codex(
             backup_remove(&profile)?;
         }
         if !rec.catalog_hash.is_empty() && catalog_path.exists() {
-            fs::remove_file(&catalog_path).with_context(|| format!("removing {}", catalog_path.display()))?;
+            backup_remove(&catalog_path)?;
         }
         let old = rec.ids.clone();
         *rec = Managed::default();

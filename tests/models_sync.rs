@@ -319,6 +319,43 @@ fn codex_catalog_lists_models_with_real_limits_and_keeps_default() {
     );
     assert!(!catalog_path.exists());
     assert!(!home.join(".codex/mixlayer.config.toml").exists());
+    // The edited catalog was backed up before removal, like the profile.
+    let backup = fs::read_dir(home.join(".codex"))
+        .unwrap()
+        .filter_map(Result::ok)
+        .find(|e| e.file_name().to_string_lossy().starts_with("mixlayer-models.json.bak-"))
+        .expect("catalog backup");
+    assert_eq!(fs::read_to_string(backup.path()).unwrap(), "{\"models\":[]}\n");
+}
+#[test]
+fn models_without_text_input_are_skipped_and_missing_metadata_means_text() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path();
+    let feed = Feed::new();
+    {
+        let mut models = feed.models.lock().unwrap();
+        let data = models["data"].as_array_mut().unwrap();
+        data[0]["input_modalities"] = json!(["text", "image"]);
+        data.push(
+            json!({"id":"img/only","context_length":1000,"input_modalities":["image"],"supported_features":["tools"]}),
+        );
+        data.push(json!({"id":"no/meta","context_length":1000,"supported_features":["tools"]}));
+    }
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let report = run(home, &feed, &["models", "sync", "--agent", "codex", "--yes"]);
+    assert_eq!(report["actions"][0]["added"], json!(["a/model", "no/meta"]), "{report}");
+    let catalog: Value = serde_json::from_slice(&fs::read(home.join(".codex/mixlayer-models.json")).unwrap()).unwrap();
+    let by = |slug: &str| {
+        catalog["models"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|m| m["slug"] == slug)
+            .cloned()
+    };
+    assert_eq!(by("a/model").unwrap()["input_modalities"], json!(["text", "image"]));
+    assert_eq!(by("no/meta").unwrap()["input_modalities"], json!(["text"]));
+    assert!(by("img/only").is_none());
 }
 #[test]
 fn dry_run_does_not_connect_or_write() {
