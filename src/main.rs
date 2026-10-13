@@ -185,7 +185,7 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
                 let home = paths::user_home();
                 print!("{}", agent_setup::render_human(&report, home.as_deref(), color));
                 if let Some(models) = &models_report {
-                    print!("{}", models_sync::render_human(models));
+                    print!("\n{}", models_sync::render_human(models, home.as_deref(), color, false));
                 }
             } else {
                 if let Some(models) = models_report {
@@ -212,7 +212,11 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
                 force: bool_flag("force"),
             })?;
             if output::wants_human_table(&g, output::stdout_is_terminal()) && !agent_detected() {
-                print!("{}", models_sync::render_human(&report));
+                let color = !g.no_color
+                    && std::env::var("NO_COLOR").unwrap_or_default().is_empty()
+                    && std::env::var("TERM").as_deref() != Ok("dumb");
+                let home = paths::user_home();
+                print!("{}", models_sync::render_human(&report, home.as_deref(), color, true));
             } else {
                 println!("{}", serde_json::to_string_pretty(&report)?);
             }
