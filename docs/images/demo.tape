@@ -1,11 +1,11 @@
 # Records docs/images/demo.gif against the real API with synthetic data.
-# From the repo root: make build && MLBIN_DIR=$PWD/bin DEMO_DIR=$PWD/docs/demo \
+# From the repo root: cargo build --release && MLBIN_DIR=$PWD/target/release DEMO_DIR=$PWD/docs/demo \
 #   MIXLAYER_HOME=$(mktemp -d) vhs docs/images/demo.tape
 # Needs MIXLAYER_API_KEY in the environment. Answers differ run to run.
 Output docs/images/demo.gif
 Set Shell "bash"
 Set FontFamily "Menlo"
-Set FontSize 15
+Set FontSize 14
 Set Width 1280
 Set Height 800
 Set Padding 28
@@ -20,7 +20,7 @@ Type "export PS1='\[\e[38;2;255;154;77m\]$\[\e[0m\] ' PATH=$MLBIN_DIR:$PATH; cd 
 Enter
 Type "# Ask the top model which customers will churn. Names and companies never leave this machine."
 Enter
-Type "mxl shield ask 'Which customers will churn, and what should we do this week? One plain-text line each.' \"
+Type "mxl shield ask 'Which customers will churn, and what should we do this week? One plain-text line each, under 100 characters.' \"
 Enter
 Type "  --data customers.csv --mask-columns customer,company"
 Enter
