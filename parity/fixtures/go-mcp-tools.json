@@ -226,7 +226,7 @@
       "type": "boolean"
      },
      "profile": {
-      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "description": "Apply values from a saved profile (see 'mxl profile list')",
       "type": "string"
      },
      "quiet": {
@@ -348,7 +348,7 @@
       "type": "boolean"
      },
      "profile": {
-      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "description": "Apply values from a saved profile (see 'mxl profile list')",
       "type": "string"
      },
      "quiet": {
@@ -494,7 +494,7 @@
       "type": "boolean"
      },
      "profile": {
-      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "description": "Apply values from a saved profile (see 'mxl profile list')",
       "type": "string"
      },
      "quiet": {
@@ -590,7 +590,7 @@
       "type": "boolean"
      },
      "profile": {
-      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "description": "Apply values from a saved profile (see 'mxl profile list')",
       "type": "string"
      },
      "quiet": {
@@ -682,7 +682,7 @@
       "type": "boolean"
      },
      "profile": {
-      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "description": "Apply values from a saved profile (see 'mxl profile list')",
       "type": "string"
      },
      "quiet": {
@@ -833,7 +833,7 @@
       "type": "boolean"
      },
      "profile": {
-      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "description": "Apply values from a saved profile (see 'mxl profile list')",
       "type": "string"
      },
      "quiet": {
@@ -945,7 +945,7 @@
       "type": "boolean"
      },
      "profile": {
-      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "description": "Apply values from a saved profile (see 'mxl profile list')",
       "type": "string"
      },
      "quiet": {
@@ -1099,7 +1099,7 @@
       "type": "boolean"
      },
      "profile": {
-      "description": "Apply values from a saved profile (see 'mixlayer profile list')",
+      "description": "Apply values from a saved profile (see 'mxl profile list')",
       "type": "string"
      },
      "quiet": {

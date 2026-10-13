@@ -9,6 +9,7 @@ pub mod help_extra;
 pub mod help_text;
 pub mod ledger;
 pub mod mcp;
+pub mod models_sync;
 pub mod output;
 pub mod paths;
 pub mod profiles;

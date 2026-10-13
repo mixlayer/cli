@@ -7,8 +7,8 @@ use clap::ArgMatches;
 
 use mixlayer::exit::Code;
 use mixlayer::{
-    Globals, agent_context, agent_detected, agent_setup, api, cli, exit, ledger, output, paths, profiles, shield_cmd,
-    skill, spec_types, which,
+    Globals, agent_context, agent_detected, agent_setup, api, cli, exit, ledger, models_sync, output, paths, profiles,
+    shield_cmd, skill, spec_types, which,
 };
 
 fn flag(m: &ArgMatches, name: &str) -> Option<bool> {
@@ -159,12 +159,24 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
                 None
             };
             let report = agent_setup::run(agent_setup::Options {
-                agent: name,
+                agent: name.clone(),
                 mcp_binary: agent_setup::mcp_binary(),
                 dry_run: g.dry_run || !explicit_yes,
                 uninstall: bool_flag("uninstall"),
                 platform,
             })?;
+            let models_report = if bool_flag("models") {
+                Some(models_sync::run(models_sync::Options {
+                    agent: name.clone(),
+                    default_model: None,
+                    dry_run: g.dry_run || !explicit_yes,
+                    offline: g.dry_run,
+                    uninstall: bool_flag("uninstall"),
+                    force: false,
+                })?)
+            } else {
+                None
+            };
             let terminal = output::stdout_is_terminal();
             if output::wants_human_table(&g, terminal) && !agent_detected() {
                 let color = !g.no_color
@@ -172,6 +184,35 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
                     && std::env::var("TERM").as_deref() != Ok("dumb");
                 let home = paths::user_home();
                 print!("{}", agent_setup::render_human(&report, home.as_deref(), color));
+                if let Some(models) = &models_report {
+                    print!("{}", models_sync::render_human(models));
+                }
+            } else {
+                if let Some(models) = models_report {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&serde_json::json!({"setup":report,"models":models}))?
+                    );
+                } else {
+                    println!("{}", serde_json::to_string_pretty(&report)?);
+                }
+            }
+            Ok(())
+        }
+        ["models", "sync"] => {
+            let name = leaf.get_one::<String>("agent").cloned().unwrap_or_else(|| "all".into());
+            let yes = flag(leaf, "yes") == Some(true);
+            let bool_flag = |name: &str| leaf.try_get_one::<bool>(name).ok().flatten().copied().unwrap_or(false);
+            let report = models_sync::run(models_sync::Options {
+                agent: name,
+                default_model: leaf.get_one::<String>("default-model").cloned(),
+                dry_run: g.dry_run || !yes,
+                offline: g.dry_run,
+                uninstall: bool_flag("uninstall"),
+                force: bool_flag("force"),
+            })?;
+            if output::wants_human_table(&g, output::stdout_is_terminal()) && !agent_detected() {
+                print!("{}", models_sync::render_human(&report));
             } else {
                 println!("{}", serde_json::to_string_pretty(&report)?);
             }
@@ -205,9 +246,9 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
         ["agent", "skill-ref"] => output::write_stdout(skill::generated_command_reference().as_bytes()),
         ["version"] => {
             if g.json || g.agent {
-                output::print_json(&serde_json::json!({"name": "mixlayer", "version": cli::VERSION}), &g)
+                output::print_json(&serde_json::json!({"name": "mxl", "version": cli::VERSION}), &g)
             } else {
-                println!("mixlayer {}", cli::VERSION);
+                println!("mxl {}", cli::VERSION);
                 Ok(())
             }
         }
@@ -231,7 +272,7 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
                 other => return Err(exit::usage(format!("unsupported shell {other:?}"))),
             };
             let mut buf = Vec::new();
-            clap_complete::generate(shell, &mut cli::build(), "mixlayer", &mut buf);
+            clap_complete::generate(shell, &mut cli::build(), "mxl", &mut buf);
             output::write_stdout(&buf)
         }
         _ => {
@@ -261,7 +302,7 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
             }
             Err(exit::err(
                 Code::Other,
-                format!("`mixlayer {full}` is not available in the Rust build yet"),
+                format!("`mxl {full}` is not available in the Rust build yet"),
             ))
         }
     }
@@ -286,7 +327,7 @@ fn run_which(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
             return output::print_json(&serde_json::json!({"matches": []}), g);
         }
         return Err(exit::usage(format!(
-            "no match for {query:?}; try 'mixlayer --help' for the full command list"
+            "no match for {query:?}; try 'mxl --help' for the full command list"
         )));
     }
     render_which(matches, as_json, g)

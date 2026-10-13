@@ -5,7 +5,7 @@ the Rust build honest against that original behavior.
 
 - `go-agent-context.json`, `go-agent-context-jini.json`: the Go CLI's full
   command, flag and exit-code description. `gen_spec.py` turns it into
-  `src/spec.rs`, and `tests/parity.rs` checks that `mixlayer agent-context`
+  `src/spec.rs`, and `tests/parity.rs` checks that `mxl agent-context`
   still matches it.
 - `go-help.json`, `go-help-jini.json`: long help and examples per command.
   `gen_help.py` turns them into `src/help_text.rs`.

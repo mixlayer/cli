@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 #[test]
 fn stdio_tools_match_go_and_sql_blocks_vault() {
     let home = tempfile::tempdir().unwrap();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mixlayer-mcp"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mxl-mcp"))
         .env("HOME", home.path())
         .env("MIXLAYER_HOME", home.path())
         .env("MIXLAYER_ENABLE_JINI", "0")

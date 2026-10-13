@@ -49,7 +49,7 @@ jobs:
         shell: bash
         working-directory: parity/e2e
         run: |
-          bin="$GITHUB_WORKSPACE/target/release/mixlayer"
+          bin="$GITHUB_WORKSPACE/target/release/mxl"
           if [ "$RUNNER_OS" = "Windows" ]; then bin="$bin.exe"; fi
           MIXLAYER_E2E_BIN="$bin" go test -count=1 -v .
 
@@ -91,8 +91,8 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           b=target/${{ matrix.target }}/release
-          file $b/mixlayer | grep -q 'statically linked'
-          $b/mixlayer version
-          $b/mixlayer agent-context > /dev/null
-          $b/mixlayer shield redact docs/demo/customers.csv --mask-columns customer,company | head -2
-          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' | $b/mixlayer-mcp | grep -q '"Mixlayer"'
+          file $b/mxl | grep -q 'statically linked'
+          $b/mxl version
+          $b/mxl agent-context > /dev/null
+          $b/mxl shield redact docs/demo/customers.csv --mask-columns customer,company | head -2
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' | $b/mxl-mcp | grep -q '"Mixlayer"'

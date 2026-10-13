@@ -103,7 +103,7 @@ pub fn resolve(name: &str) -> anyhow::Result<Profile> {
     let available = names();
     if available.is_empty() {
         anyhow::bail!(
-            "profile {name:?} not found (no profiles saved yet; run 'mixlayer profile save <name> --<flag> <value>')"
+            "profile {name:?} not found (no profiles saved yet; run 'mxl profile save <name> --<flag> <value>')"
         );
     }
     anyhow::bail!("profile {name:?} not found; available: {}", available.join(", "))
@@ -146,7 +146,7 @@ fn explicit_values(leaf: &ArgMatches, path: &str) -> BTreeMap<String, String> {
     out
 }
 
-/// `mixlayer profile ...` commands. Returns None for other paths.
+/// `mxl profile ...` commands. Returns None for other paths.
 pub fn dispatch(path: &[&str], leaf: &ArgMatches, g: &Globals) -> Option<anyhow::Result<()>> {
     let sub = match path {
         ["profile", sub] => *sub,
@@ -156,7 +156,7 @@ pub fn dispatch(path: &[&str], leaf: &ArgMatches, g: &Globals) -> Option<anyhow:
     let name = first_positional(leaf, &full);
     let need_name = || {
         name.clone()
-            .ok_or_else(|| exit::usage(format!("accepts 1 arg(s), received 0 (usage: mixlayer {full} <name>)")))
+            .ok_or_else(|| exit::usage(format!("accepts 1 arg(s), received 0 (usage: mxl {full} <name>)")))
     };
     Some((|| match sub {
         "save" => {
@@ -248,7 +248,7 @@ pub fn dispatch(path: &[&str], leaf: &ArgMatches, g: &Globals) -> Option<anyhow:
             println!("deleted profile {name:?}");
             Ok(())
         }
-        _ => Err(exit::usage(format!("unknown command {sub:?} for \"mixlayer profile\""))),
+        _ => Err(exit::usage(format!("unknown command {sub:?} for \"mxl profile\""))),
     })())
 }
 

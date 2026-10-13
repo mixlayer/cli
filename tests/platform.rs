@@ -116,7 +116,7 @@ fn one_org() -> (&'static str, &'static str, u16, Value) {
 }
 
 fn run(home: &Path, fake: &Fake, args: &[&str], key: Option<&str>) -> Output {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_mixlayer"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_mxl"));
     cmd.args(args)
         .env_clear()
         .envs(std::env::vars().filter(|(k, _)| matches!(k.to_ascii_uppercase().as_str(), "SYSTEMROOT" | "WINDIR")))
@@ -350,9 +350,9 @@ fn executable(path: &Path, body: &str) {
 fn setup(home: &Path, fake: &Fake, args: &[&str], key: Option<&str>, path_dir: Option<&Path>) -> Output {
     let bins = home.join("bin");
     fs::create_dir_all(&bins).unwrap();
-    let mcp = bins.join("mixlayer-mcp");
+    let mcp = bins.join("mxl-mcp");
     executable(&mcp, "#!/bin/sh\nexit 0\n");
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_mixlayer"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_mxl"));
     cmd.args(["agent", "setup"])
         .args(args)
         .env("HOME", home)
@@ -679,7 +679,7 @@ fn mint_deletion_failure_and_spawn_failure_still_clean_up() {
     );
     assert_eq!(out.status.code(), Some(5));
     assert_eq!(text(&out.stdout), "child-ok");
-    assert!(text(&out.stderr).contains("mixlayer keys delete mint_2 --yes"));
+    assert!(text(&out.stderr).contains("mxl keys delete mint_2 --yes"));
 
     let fake = Fake::start(&[
         one_org(),
@@ -722,7 +722,7 @@ fn mint_deletes_after_sigint_reaches_child_process_group() {
             Value::Null,
         ),
     ]);
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mixlayer"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mxl"))
         .args(["keys", "mint", "--", "sh", "-c", "printf 'ready\\n'; exec sleep 30"])
         .env_clear()
         .env("HOME", home.path())
@@ -772,7 +772,7 @@ fn mint_forwards_sigterm_sent_only_to_the_parent() {
         ),
     ]);
     let started = Instant::now();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mixlayer"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mxl"))
         .args(["keys", "mint", "--", "sh", "-c", "printf 'ready\\n'; exec sleep 30"])
         .env_clear()
         .env("HOME", home.path())
@@ -1103,7 +1103,7 @@ fn audit_follow_uses_before_cursor_and_stops_on_sigint() {
             "start_cursor": "s2", "end_cursor": "e2"}),
         ),
     ]);
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mixlayer"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mxl"))
         .args(["audit", "--org", "org_test", "--follow", "--interval", "1s", "--json"])
         .env_clear()
         .env("HOME", home.path())
@@ -1149,7 +1149,7 @@ fn audit_follow_keeps_polling_when_the_first_page_is_empty() {
         200,
         json!({"data": [], "start_cursor": null, "end_cursor": null}),
     )]);
-    let child = Command::new(env!("CARGO_BIN_EXE_mixlayer"))
+    let child = Command::new(env!("CARGO_BIN_EXE_mxl"))
         .args(["audit", "--org", "org_test", "--follow", "--interval", "1s", "--json"])
         .env_clear()
         .env("HOME", home.path())

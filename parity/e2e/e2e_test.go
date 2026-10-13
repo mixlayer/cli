@@ -26,7 +26,7 @@ const dummyKey = "mlk-e2e-dummy-key-0f9e8d7c6b5a"
 var binPath string
 
 func TestMain(m *testing.M) {
-	name := "mixlayer"
+	name := "mxl"
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
@@ -159,7 +159,7 @@ func requireJSON(t *testing.T, label, s string) any {
 
 func TestVersion(t *testing.T) {
 	res := run(t, nil, "--version")
-	if res.code != 0 || !strings.HasPrefix(res.stdout, "mixlayer ") {
+	if res.code != 0 || !strings.HasPrefix(res.stdout, "mxl ") {
 		t.Fatalf("--version: code=%d out=%q", res.code, res.stdout)
 	}
 }

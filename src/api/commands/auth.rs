@@ -15,7 +15,7 @@ pub fn setup(m: &ArgMatches) -> anyhow::Result<()> {
     println!("2. Put it in your environment:");
     println!("     export MIXLAYER_API_KEY=\"your-key\"");
     println!("3. Check it works:");
-    println!("     mixlayer doctor");
+    println!("     mxl doctor");
     if bool_arg(m, "launch") {
         #[cfg(target_os = "macos")]
         let mut cmd = std::process::Command::new("open");
@@ -44,7 +44,7 @@ pub fn set_token(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     } else {
         if std::io::stdin().is_terminal() {
             return Err(exit::usage(
-                "pipe the key on stdin, for example: pbpaste | mixlayer auth set-token",
+                "pipe the key on stdin, for example: pbpaste | mxl auth set-token",
             ));
         }
         let mut bytes = Vec::new();
@@ -69,6 +69,26 @@ pub fn set_token(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         println!("Token saved to {}", cfg.credentials_path.display());
         Ok(())
     }
+}
+
+pub fn token(m: &ArgMatches) -> anyhow::Result<()> {
+    if token_needs_reveal(std::io::stdout().is_terminal(), bool_arg(m, "reveal")) {
+        return Err(exit::usage(
+            "refusing to print the API key to a terminal; pass --reveal to continue",
+        ));
+    }
+    let cfg = config::load(arg(m, "config")).map_err(|e| exit::err(Code::Config, e.to_string()))?;
+    let key = cfg
+        .auth_header
+        .strip_prefix("Bearer ")
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| exit::err(Code::Auth, "no resolved API key configured"))?;
+    println!("{key}");
+    Ok(())
+}
+
+fn token_needs_reveal(stdout_is_terminal: bool, reveal: bool) -> bool {
+    stdout_is_terminal && !reveal
 }
 
 pub fn status(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
@@ -116,5 +136,16 @@ pub fn logout(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
             println!("Logged out. Credentials cleared.");
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod token_tests {
+    use super::token_needs_reveal;
+    #[test]
+    fn terminal_requires_explicit_reveal() {
+        assert!(token_needs_reveal(true, false));
+        assert!(!token_needs_reveal(true, true));
+        assert!(!token_needs_reveal(false, false));
     }
 }

@@ -10,7 +10,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 
 fn cli(home: &Path, args: &[&str], input: Option<&str>) -> Output {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_mixlayer"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_mxl"));
     command
         .args(args)
         .env_clear()

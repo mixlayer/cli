@@ -215,7 +215,7 @@ pub fn mint(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
             eprintln!("Deleted API key {id}");
         }
     } else {
-        eprintln!("Could not delete API key {id} (expires {expires}); retry: mixlayer keys delete {id} --yes");
+        eprintln!("Could not delete API key {id} (expires {expires}); retry: mxl keys delete {id} --yes");
     }
     let status = result.map_err(|e| exit::err(Code::Other, format!("running {}: {e}", command[0])))?;
     let child_code = status.code().unwrap_or_else(|| signal_exit_code(&status));
@@ -354,7 +354,7 @@ pub(crate) fn platform_client(m: &ArgMatches, base: &str) -> anyhow::Result<Clie
         return Err(exit::err(
             Code::Auth,
             format!(
-                "no API key configured\nhint: create a key with the api-read or api-admin permission at {}\n      then export MIXLAYER_API_KEY or run: pbpaste | mixlayer auth set-token",
+                "no API key configured\nhint: create a key with the api-read or api-admin permission at {}\n      then export MIXLAYER_API_KEY or run: pbpaste | mxl auth set-token",
                 console_url("/app/api-keys", "keys")
             ),
         ));
@@ -416,7 +416,7 @@ fn key_id(m: &ArgMatches, command: &str) -> anyhow::Result<String> {
     let args = words(m, command);
     match args.as_slice() {
         [id] if !id.trim().is_empty() => Ok(id.trim().to_owned()),
-        [] => Err(exit::usage("key-id is required (see `mixlayer keys list`)")),
+        [] => Err(exit::usage("key-id is required (see `mxl keys list`)")),
         _ => Err(exit::usage("expected exactly one key-id")),
     }
 }
@@ -547,7 +547,7 @@ pub(crate) fn platform_error(err: anyhow::Error, g: &Globals, needs: &str) -> an
         ),
         404 => exit::err(
             Code::NotFound,
-            format!("{err}\nhint: check the ID with `mixlayer keys list` (and --org if you have several)"),
+            format!("{err}\nhint: check the ID with `mxl keys list` (and --org if you have several)"),
         ),
         _ => classified(err, g, "keys"),
     }

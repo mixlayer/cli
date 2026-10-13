@@ -8,7 +8,7 @@
 The official command-line tool for [Mixlayer](https://mixlayer.com). Run open models like DeepSeek, Qwen and GLM from your terminal, see what every answer costs, and give your coding agent the same access. Written in Rust, with builds for macOS, Linux and Windows.
 
 ```sh
-mixlayer ask "Explain the CAP theorem in two sentences"
+mxl ask "Explain the CAP theorem in two sentences"
 ```
 
 ## Quick start
@@ -17,8 +17,8 @@ mixlayer ask "Explain the CAP theorem in two sentences"
 curl -fsSL https://github.com/mixlayer/cli/releases/latest/download/install.sh | sh
 export MIXLAYER_API_KEY="your-key"      # from https://console.mixlayer.com/app/api-keys
 
-mixlayer models list --live-prices      # what you can call, and what it costs
-mixlayer ask "Explain the CAP theorem in two sentences"
+mxl models list --live-prices      # what you can call, and what it costs
+mxl ask "Explain the CAP theorem in two sentences"
 ```
 
 It works like any other model CLI from there. The rest of this page covers what it does beyond the API call.
@@ -33,6 +33,8 @@ It works like any other model CLI from there. The rest of this page covers what 
 
 **Remember every run.** Each call lands in a local SQLite ledger. `grep` searches old answers, `replay` re-runs a prompt with the same model and seed to check drift, and `sql` queries your spend.
 
+**Run your coding agent on Mixlayer models.** `models sync` adds Mixlayer's current models to Codex, OpenCode and Hermes, so the agent itself runs on GLM, DeepSeek or Qwen. In Codex they show up in `/model` with their real context windows.
+
 **Mask private data for any model.** `shield ask` swaps names, emails, phone numbers and IDs for placeholders, sends the masked prompt, and restores the real values in the answer on your machine. It works with Mixlayer, OpenAI, Anthropic, OpenRouter or your own endpoint. Mixlayer itself runs with [zero data retention](https://docs.mixlayer.com/zero-data-retention) by default.
 
 ### Built for agents
@@ -45,12 +47,13 @@ Give your agent the Mixlayer skill so it knows how to use the CLI:
 | OpenClaw | Paste to your agent: "Install the Mixlayer skill from https://github.com/mixlayer/cli/tree/main/skills/mixlayer. The skill explains how to install the CLI." |
 | Claude Code | `npx skills add mixlayer/cli --skill mixlayer -g -a claude-code -y` |
 | Codex, Cursor and others | `npx skills add mixlayer/cli --skill mixlayer -g -y` |
-| Any of the above, plus the MCP server | `mixlayer agent setup --agent all --yes` |
-| Also let the agent manage your account (keys, usage, billing) | `mixlayer agent setup --agent claude-code --platform --yes` |
+| Any of the above, plus the MCP server | `mxl agent setup --agent all --yes` |
+| Run the agent itself on Mixlayer models (Codex, OpenCode, Hermes) | `mxl models sync --yes`, see [below](#use-mixlayer-models-inside-your-agent) |
+| Also let the agent manage your account (keys, usage, billing) | `mxl agent setup --agent claude-code --platform --yes` |
 
 Then ask your agent something like "use mixlayer to find the cheapest model that answers this prompt as well as GLM".
 
-`mixlayer agent setup` installs an Agent Skill and an MCP server into Claude Code, Codex, Cursor, Hermes or Claude Desktop, without writing your key into their config. Every command takes `--agent` (JSON on stdout, no prompts) and `--dry-run` (show the exact request without sending it), and returns [exit codes](#exit-codes) a script can branch on. `agent-context` lists every command and flag as JSON, and `which "compare models"` finds the right command for a task.
+`mxl agent setup` installs an Agent Skill and an MCP server into Claude Code, Codex, Cursor, Hermes or Claude Desktop, without writing your key into their config. Commands take `--agent` (JSON on stdout, no prompts) and `--dry-run` (show the exact request without sending it), and return [exit codes](#exit-codes) a script can branch on. On `agent setup` and `models sync`, `--agent` names the agent to set up instead, so use `--json` there. `agent-context` lists every command and flag as JSON, and `which "compare models"` finds the right command for a task.
 
 ## Contents
 
@@ -62,6 +65,7 @@ Then ask your agent something like "use mixlayer to find the cheapest model that
 - [Your local ledger](#your-local-ledger)
 - [Scripts and CI](#scripts-and-ci)
 - [Coding agents and MCP](#coding-agents-and-mcp)
+- [Use Mixlayer models inside your agent](#use-mixlayer-models-inside-your-agent)
 - [Configuration](#configuration)
 - [Exit codes](#exit-codes)
 - [Development](#development)
@@ -74,7 +78,7 @@ On macOS or Linux:
 curl -fsSL https://github.com/mixlayer/cli/releases/latest/download/install.sh | sh
 ```
 
-The script downloads the right build for your machine, checks it against the release checksums and puts `mixlayer` and `mixlayer-mcp` in `~/.local/bin` (set `MIXLAYER_INSTALL_DIR` to change that).
+The script downloads the right build for your machine, checks it against the release checksums and puts `mxl` and `mxl-mcp` in `~/.local/bin` (set `MIXLAYER_INSTALL_DIR` to change that).
 
 On Windows, or to install by hand, download the archive for your platform from [Releases](https://github.com/mixlayer/cli/releases), unpack it and put both binaries on your `PATH`. Builds cover macOS (Apple silicon and Intel), Linux (x86-64 and ARM64, statically linked) and Windows (x86-64 and ARM64).
 
@@ -87,20 +91,22 @@ cargo install --locked --git https://github.com/mixlayer/cli
 Check the install:
 
 ```sh
-mixlayer version
+mxl version
 ```
+
+**Upgrading from v0.2?** The command is now `mxl` (it was `mixlayer`), and the MCP server is `mxl-mcp`. The installer replaces the old `mixlayer` and `mixlayer-mcp` with links to the new names, so existing scripts keep working. Run `mxl agent setup --agent all --yes` once so your agents use `mxl-mcp`. Your key, config and ledger stay where they were.
 
 For tab completion, add the script for your shell (`bash`, `zsh`, `fish` or `powershell`), for example:
 
 ```sh
-mixlayer completion zsh > "${fpath[1]}/_mixlayer"
+mxl completion zsh > "${fpath[1]}/_mxl"
 ```
 
 Every command and subcommand is listed in the [command reference](skills/mixlayer/references/commands.md), which is generated from the CLI itself. Add `--help` to any command for the details.
 
 ## Get started
 
-1. Create an API key in the [Mixlayer console](https://console.mixlayer.com/app/api-keys). `mixlayer auth setup --launch` opens that page for you.
+1. Create an API key in the [Mixlayer console](https://console.mixlayer.com/app/api-keys). `mxl auth setup --launch` opens that page for you.
 2. Give the CLI your key. Either export it:
 
    ```sh
@@ -110,13 +116,13 @@ Every command and subcommand is listed in the [command reference](skills/mixlaye
    or save it once to the CLI's private credentials file (mode 0600) by piping it in, which keeps it out of your shell history:
 
    ```sh
-   pbpaste | mixlayer auth set-token
+   pbpaste | mxl auth set-token
    ```
 
 3. Check that everything is wired up:
 
    ```sh
-   mixlayer doctor
+   mxl doctor
    ```
 
    `doctor` reports whether the key is set, whether the API is reachable, and where the CLI keeps its config and data. It never prints the key.
@@ -124,7 +130,7 @@ Every command and subcommand is listed in the [command reference](skills/mixlaye
 4. Ask something:
 
    ```sh
-   mixlayer ask "Write a haiku about cache invalidation"
+   mxl ask "Write a haiku about cache invalidation"
    ```
 
    Without `--model`, the CLI picks the highest-priced active model in your live catalog. The answer prints to stdout, and the prompt, answer, token counts and cost go into the local ledger.
@@ -132,15 +138,15 @@ Every command and subcommand is listed in the [command reference](skills/mixlaye
 For raw API access with every OpenAI parameter, use `chat`:
 
 ```sh
-mixlayer chat --model <model-id> --messages '[{"role":"user","content":"Hello"}]' --temperature 0.2 --max-tokens 200
+mxl chat --model <model-id> --messages '[{"role":"user","content":"Hello"}]' --temperature 0.2 --max-tokens 200
 ```
 
 ## Pick a model
 
 ```sh
-mixlayer models list                      # model IDs available to your key
-mixlayer models list --live-prices        # adds status and price per 1M tokens (JSON adds context size, tools, modalities)
-mixlayer models query "ctx>=128k tools"   # filter the cached catalog
+mxl models list                      # model IDs available to your key
+mxl models list --live-prices        # adds status and price per 1M tokens (JSON adds context size, tools, modalities)
+mxl models query "ctx>=128k tools"   # filter the cached catalog
 ```
 
 Prices come from your organization's live catalog and are cached locally for an hour. Pick model IDs from this list rather than hard-coding them, because the lineup changes.
@@ -150,26 +156,26 @@ Prices come from your organization's live catalog and are cached locally for an 
 Run the same prompt across several models and see answers, latency, tokens and cost side by side:
 
 ```sh
-mixlayer ladder "Summarize this stack trace: ..." --rungs <model-a>,<model-b>,<model-c>
+mxl ladder "Summarize this stack trace: ..." --rungs <model-a>,<model-b>,<model-c>
 ```
 
 Start with the cheapest model and move up only when the answer looks unsure:
 
 ```sh
-mixlayer escalate "Classify this ticket as bug, feature or question: ..." --confidence 0.85
+mxl escalate "Classify this ticket as bug, feature or question: ..." --confidence 0.85
 ```
 
 Ask several models, then have a judge model reconcile them and flag disagreements:
 
 ```sh
-mixlayer council "Which of these migration plans is safest? ..." --members <model-a>,<model-b> --judge <model-c>
+mxl council "Which of these migration plans is safest? ..." --members <model-a>,<model-b> --judge <model-c>
 ```
 
 Check whether a cheap model is good enough for a task, and what you'd save:
 
 ```sh
-mixlayer compare "Extract the invoice total from: ..." --cheap <small-model> --frontier <large-model>
-mixlayer savings --vs gpt-frontier
+mxl compare "Extract the invoice total from: ..." --cheap <small-model> --frontier <large-model>
+mxl savings --vs gpt-frontier
 ```
 
 `savings` totals your ledger's real spend against what the same tokens would cost on a frontier model.
@@ -180,7 +186,7 @@ mixlayer savings --vs gpt-frontier
 
 Mixlayer doesn't keep your requests ([zero data retention](https://docs.mixlayer.com/zero-data-retention)). Shield covers everything else: other providers, other retention policies, or any time you'd rather a model never see a real name.
 
-<p align="center"><img src="docs/images/demo.gif" alt="mixlayer shield ask ranks churn risk in a customer list while names, emails, phones and companies stay on the machine" width="100%"></p>
+<p align="center"><img src="docs/images/demo.gif" alt="mxl shield ask ranks churn risk in a customer list while names, emails, phones and companies stay on the machine" width="100%"></p>
 
 That demo is a real run on a synthetic customer list ([docs/demo/customers.csv](docs/demo/customers.csv)). The model saw `CUSTOMER_e993684a` and `COMPANY_293a7f63`, never the real values, and the CLI put the names back into the answer locally.
 
@@ -188,20 +194,20 @@ That demo is a real run on a synthetic customer list ([docs/demo/customers.csv](
 See exactly what the model will get, without sending anything:
 
 ```sh
-mixlayer shield redact customers.csv --mask-columns customer,company
+mxl shield redact customers.csv --mask-columns customer,company
 ```
 
 Then ask. `--mask-columns` masks every value in the columns you name, on top of the detector, which suits exports where you know which fields are private:
 
 ```sh
-mixlayer shield ask "Which customers will churn, and what should we do this week?" \
+mxl shield ask "Which customers will churn, and what should we do this week?" \
   --data customers.csv --mask-columns customer,company --show-sent
 ```
 
 `--show-sent` prints the masked request after the answer. Shield works with Mixlayer or any other provider:
 
 ```sh
-mixlayer shield ask "Draft a follow-up email" --data customers.csv --upstream openai --model gpt-4o --detector local:llama3.1:8b
+mxl shield ask "Draft a follow-up email" --data customers.csv --upstream openai --model gpt-4o --detector local:llama3.1:8b
 ```
 
 Before every send, shield scans the masked payload again and stops with exit code 6 if anything still looks personal.
@@ -209,11 +215,11 @@ Before every send, shield scans the masked payload again and stops with exit cod
 Other shield commands:
 
 ```sh
-mixlayer shield scan export.csv --max-risk 0        # fail (exit 6) if the file contains PII; no network
-mixlayer shield redact export.csv -o masked.csv     # write a masked copy
-mixlayer vault rehydrate masked-answer.txt          # put real values back, locally
-mixlayer shield audit                               # receipts: what was sent, to whom, and how much was masked
-mixlayer shield eval --sample testdata/shield-eval/synthetic.jsonl --detector regex
+mxl shield scan export.csv --max-risk 0        # fail (exit 6) if the file contains PII; no network
+mxl shield redact export.csv -o masked.csv     # write a masked copy
+mxl vault rehydrate masked-answer.txt          # put real values back, locally
+mxl shield audit                               # receipts: what was sent, to whom, and how much was masked
+mxl shield eval --sample testdata/shield-eval/synthetic.jsonl --detector regex
 ```
 
 ### Pick a detector
@@ -231,44 +237,44 @@ Regex alone is a floor, not a guarantee. Sending to a non-Mixlayer provider with
 `ask`, `ladder`, `escalate`, `council`, `compare` and `shield ask` save every run locally.
 
 ```sh
-mixlayer grep "migration" --limit 10              # full-text search over prompts, answers and reasoning
-mixlayer replay <run-id>                          # re-run with the same model and seed to check drift
-mixlayer sql "select model, count(*), sum(cost_usd) from runs group by model"
-mixlayer sql "select * from runs order by created_at desc limit 100" --json > recent-runs.json
+mxl grep "migration" --limit 10              # full-text search over prompts, answers and reasoning
+mxl replay <run-id>                          # re-run with the same model and seed to check drift
+mxl sql "select model, count(*), sum(cost_usd) from runs group by model"
+mxl sql "select * from runs order by created_at desc limit 100" --json > recent-runs.json
 ```
 
-`sql` is read-only. Shield runs store only the masked prompt that was actually sent. The original values live in a separate local vault that agent-mode `sql` and the MCP server refuse to read; use `mixlayer vault rehydrate` yourself when you need them.
+`sql` is read-only. Shield runs store only the masked prompt that was actually sent. The original values live in a separate local vault that agent-mode `sql` and the MCP server refuse to read; use `mxl vault rehydrate` yourself when you need them.
 
 ## Scripts and CI
 
 Add `--agent` to any command to get JSON on stdout with no prompts and no color. Use `--select` to keep only the fields you need and `--dry-run` to see a request without sending it.
 
 ```sh
-mixlayer models list --agent --select id
-mixlayer ask "Is this commit message clear? ..." --model <model-id> --agent | jq -r .answer
+mxl models list --agent --select id
+mxl ask "Is this commit message clear? ..." --model <model-id> --agent | jq -r .answer
 ```
 
 Use exit codes in pipelines instead of parsing error text. For example, block a commit that contains personal data:
 
 ```sh
-mixlayer shield scan fixtures/users.json --max-risk 0 --agent || exit 1
+mxl shield scan fixtures/users.json --max-risk 0 --agent || exit 1
 ```
 
 `--agent` turns on automatically when the CLI detects Claude Code, Codex, Cursor or Gemini CLI. Set `MIXLAYER_NO_AGENT_DETECT=1` to turn that off.
 
 ## Coding agents and MCP
 
-The CLI ships with an [Agent Skill](skills/mixlayer/SKILL.md) and an MCP server (`mixlayer-mcp`). One command installs both into your agents:
+The CLI ships with an [Agent Skill](skills/mixlayer/SKILL.md) and an MCP server (`mxl-mcp`). One command installs both into your agents:
 
 ```sh
-mixlayer agent setup --agent claude-code          # preview what would change
-mixlayer agent setup --agent claude-code --yes    # install
-mixlayer agent setup --agent all --uninstall --yes
+mxl agent setup --agent claude-code          # preview what would change
+mxl agent setup --agent claude-code --yes    # install
+mxl agent setup --agent all --uninstall --yes
 ```
 
 Targets are `claude-code`, `codex`, `cursor`, `hermes`, `claude-desktop` or `all`. Setup backs up files it edits and never writes your API key into agent config; keep `MIXLAYER_API_KEY` in the environment the agent runs in.
 
-After you upgrade the CLI, run `mixlayer agent setup --agent all --yes` again so your agents get the new skill. Setup updates any skill it installed that you haven't edited, and leaves edited copies alone. `mixlayer doctor` lists each installed skill as `current`, `outdated` or `modified`. The MCP server needs no update step: its tools come from the binary you just installed.
+After you upgrade the CLI, run `mxl agent setup --agent all --yes` again so your agents get the new skill. Setup updates any skill it installed that you haven't edited, and leaves edited copies alone. `mxl doctor` lists each installed skill as `current`, `outdated` or `modified`. The MCP server needs no update step: its tools come from the binary you just installed.
 
 The MCP server gives agents typed tools for the API (`chat_create_completion`, `models_list`, `models_get`) and workflow tools for everything above: `ask`, `ladder`, `escalate`, `shield_ask`, `shield_redact`, `shield_scan`, `shield_audit`, `shield_eval`, `grep`, `sql`, `savings`, `models_query` and `doctor`. A `context` tool hands the agent the embedded skill first, so it learns to check live models, preview with `dry_run`, and route personal data through `shield_ask`.
 
@@ -279,7 +285,7 @@ Some things stay off MCP on purpose: the vault and the shield dictionary (they h
 Mixlayer also hosts an MCP server for the Platform API at `https://api.mixlayer.com/v1/mcp`. With it, your agent can list and create API keys, check usage and spend, manage members and read invoices. Add `--platform` to setup:
 
 ```sh
-mixlayer agent setup --agent claude-code --platform --yes
+mxl agent setup --agent claude-code --platform --yes
 ```
 
 The agent authenticates with the key in `MIXLAYER_API_KEY` (or the variable you name with `--key-env`), and that key needs the `api-read` permission. If the variable is set, setup checks the key before it changes anything. The tools, the permissions and the config for each agent are in [docs/platform-mcp.md](docs/platform-mcp.md).
@@ -287,19 +293,19 @@ The agent authenticates with the key in `MIXLAYER_API_KEY` (or the variable you 
 The same key operations work from the terminal:
 
 ```sh
-mixlayer keys list
-mixlayer keys create --name ci --permissions inference   # prints the new secret once
-mixlayer keys rotate <key-id> --yes
+mxl keys list
+mxl keys create --name ci --permissions inference   # prints the new secret once
+mxl keys rotate <key-id> --yes
 ```
 
 ### Your account from the terminal
 
 ```sh
-mixlayer whoami --agent                                  # key source, organization and permissions
-mixlayer keys mint --ttl 30m -- mixlayer models list      # give one job a temporary key
-mixlayer spend --range current --fail-over 5 --agent     # exit 9 when gross usage exceeds $5
-mixlayer budget set --monthly-limit 25 --warn-at 20 --yes
-mixlayer audit --since 24h --follow
+mxl whoami --agent                                # key source, organization and permissions
+mxl keys mint --ttl 30m -- mxl models list        # give one job a temporary key
+mxl spend --range current --fail-over 5 --agent   # exit 9 when gross usage exceeds $5
+mxl budget set --monthly-limit 25 --warn-at 20 --yes
+mxl audit --since 24h --follow
 ```
 
 Minted keys expire on the server and are deleted when the job ends. Inference may keep accepting a deleted key for up to a minute while the gateway cache refreshes. `budget set` limits are monthly; reaching the limit pauses paid model traffic until it resets or is raised.
@@ -307,12 +313,39 @@ Minted keys expire on the server and are deleted when the job ends. Inference ma
 Agents can also discover the CLI directly:
 
 ```sh
-mixlayer agent-context            # every command, flag and exit code as JSON
-mixlayer which "compare models"   # find the command for a task
-mixlayer agent skill print        # read the embedded skill
+mxl agent-context            # every command, flag and exit code as JSON
+mxl which "compare models"   # find the command for a task
+mxl agent skill print        # read the embedded skill
 ```
 
 To build the Claude Desktop bundle, run `scripts/mcpb.sh`.
+
+## Use Mixlayer models inside your agent
+
+`mxl agent setup` teaches an agent to call the CLI. `mxl models sync` goes further: it adds Mixlayer as a model provider, so the agent itself runs on Mixlayer models.
+
+```sh
+mxl models sync                # preview: which models each agent would get; writes nothing
+mxl models sync --yes          # add them
+mxl models sync --agent codex --default-model z-ai/glm-5.3 --yes
+mxl models sync --uninstall --yes
+```
+
+Without `--agent`, it updates every supported agent it finds on your machine. Run it again when Mixlayer adds models. `mxl doctor` lists which agents have Mixlayer models registered.
+
+| Agent | What it adds | Then |
+| --- | --- | --- |
+| Codex | A `mixlayer` provider, a `mixlayer` profile, and a model list that only that profile uses | `codex --profile mixlayer`, then `/model` to switch models. Plain `codex` keeps its usual models. |
+| OpenCode | A `mixlayer` provider with every model and its limits, in `~/.config/opencode/opencode.json` | Pick a `mixlayer/...` model in OpenCode, or `opencode run -m mixlayer/<model-id>` |
+| Hermes | A `mixlayer` provider, added with `hermes config set` | `hermes chat --provider mixlayer --model <model-id>`, or `/model` inside Hermes |
+| Cursor, Claude Code, Claude Desktop | Nothing; it prints setup steps | Claude clients need an Anthropic-compatible API, which Mixlayer doesn't offer yet |
+
+Your API key never goes into an agent's config:
+
+- **Codex** gets the key from `mxl` (`mxl auth token`), so a key in `MIXLAYER_API_KEY` or one saved with `mxl auth set-token` both work.
+- **OpenCode and Hermes** read `MIXLAYER_API_KEY`, so export it in the shell you start them from.
+
+`models sync` changes only the entries it added. It backs up each file before changing it, leaves your other providers and comments alone, and skips anything you've edited since (`--force` overrides that). It follows `CODEX_HOME`, `XDG_CONFIG_HOME` and `HERMES_HOME` if you've set them.
 
 ## Configuration
 
@@ -325,13 +358,13 @@ To build the Claude Desktop bundle, run `scripts/mcpb.sh`.
 | `MIXLAYER_CONFIG` | Path to the config file |
 | `MIXLAYER_NO_AGENT_DETECT` | Set to `1` to stop automatic `--agent` mode |
 
-By default the CLI follows your platform's standard locations (`~/.config/mixlayer`, `~/.local/share/mixlayer` and so on, or the XDG variables if set). `mixlayer doctor` prints the resolved paths.
+By default the CLI follows your platform's standard locations (`~/.config/mixlayer`, `~/.local/share/mixlayer` and so on, or the XDG variables if set). `mxl doctor` prints the resolved paths.
 
 You can save global flags under a name and reuse them, which helps scheduled jobs run the same way every time:
 
 ```sh
-mixlayer profile save ci --agent --timeout 60s
-mixlayer models list --profile ci
+mxl profile save ci --agent --timeout 60s
+mxl models list --profile ci
 ```
 
 ## Exit codes
@@ -341,7 +374,7 @@ mixlayer models list --profile ci
 | 0 | Success | |
 | 1 | Other failure | Read the error |
 | 2 | Bad command or argument | Fix the arguments; retrying won't help |
-| 3 | Not found (HTTP 404, or unknown model) | Check the ID with `mixlayer models list` |
+| 3 | Not found (HTTP 404, or unknown model) | Check the ID with `mxl models list` |
 | 4 | Authentication or permission (HTTP 401/403) | Check `MIXLAYER_API_KEY` |
 | 5 | Other API error | Inspect the response; retry if it's a 5xx |
 | 6 | Partial failure, or PII found by `shield scan`/the shield tripwire | Inspect per-item results or the receipt |
@@ -354,7 +387,7 @@ mixlayer models list --profile ci
 
 ```sh
 git clone https://github.com/mixlayer/cli && cd cli
-cargo build --release   # target/release/mixlayer and mixlayer-mcp
+cargo build --release   # target/release/mxl and mxl-mcp
 cargo test              # unit, parity and integration tests, offline
 ```
 

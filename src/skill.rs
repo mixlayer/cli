@@ -17,7 +17,7 @@ pub fn files() -> [(&'static str, &'static str); 3] {
 /// Render the checked-in reference from the declarative command table.
 pub fn generated_command_reference() -> String {
     let mut out = String::from(
-        "# Mixlayer commands\n\nGenerated from the command table by `mixlayer agent skill-ref`. Do not edit manually. Use `--help` for detailed syntax.\n\n",
+        "# Mixlayer commands\n\nGenerated from the command table by `mxl agent skill-ref`. Do not edit manually. Use `--help` for detailed syntax.\n\n",
     );
     fn visit<'a>(prefix: &str, cmds: &'a [Cmd], out: &mut Vec<(String, &'a Cmd)>) {
         for cmd in cmds {
@@ -73,7 +73,7 @@ pub fn generated_command_reference() -> String {
         flags.sort();
         flags.dedup();
         out.push_str(&format!(
-            "## `mixlayer {path}`\n\n{}\n\nFlags: {}\n\n",
+            "## `mxl {path}`\n\n{}\n\nFlags: {}\n\n",
             cmd.short,
             flags.join(", ")
         ));
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn documented_commands_exist_in_tree() {
         let root = crate::cli::build();
-        let inline = Regex::new(r"`(mixlayer [^`]+)`").unwrap();
+        let inline = Regex::new(r"`(mxl [^`]+)`").unwrap();
         let mut count = 0;
         let mut documents = vec![TEXT, PRIVACY, COMMANDS];
         let readme = include_str!("../README.md");
@@ -102,7 +102,7 @@ mod tests {
             for line in doc.lines() {
                 let line = line.trim();
                 let mut examples: Vec<&str> = inline.captures_iter(line).map(|c| c.get(1).unwrap().as_str()).collect();
-                if line.starts_with("mixlayer ") {
+                if line.starts_with("mxl ") {
                     examples.push(line);
                 }
                 for example in examples {
@@ -149,7 +149,7 @@ mod tests {
         let missing: Vec<&str> = names
             .into_iter()
             .filter(|name| {
-                let needle = format!("mixlayer {name}");
+                let needle = format!("mxl {name}");
                 !readme.match_indices(&needle).any(|(i, _)| {
                     readme[i + needle.len()..]
                         .chars()
@@ -160,7 +160,7 @@ mod tests {
             .collect();
         assert!(
             missing.is_empty(),
-            "README.md never shows these commands as `mixlayer <name>`: {missing:?}. Add an example or a sentence for each."
+            "README.md never shows these commands as `mxl <name>`: {missing:?}. Add an example or a sentence for each."
         );
         assert!(readme.contains("skills/mixlayer/references/commands.md"));
     }

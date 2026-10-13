@@ -9,7 +9,7 @@ const BASE: &str = "http://127.0.0.1:9";
 const AUTH: &str = "Bearer output-test";
 
 fn cli(home: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_mixlayer"))
+    Command::new(env!("CARGO_BIN_EXE_mxl"))
         .args(args)
         .env_clear()
         // Windows networking needs SYSTEMROOT (WSA error 10106 without it).

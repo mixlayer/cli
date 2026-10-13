@@ -17,4 +17,4 @@ mixlayer ...
 **Environment**
 - `mixlayer --version`:
 - OS / arch:
-- Output of `mixlayer doctor --json` (keys are never printed):
+- Output of `mxl doctor --json` (keys are never printed):

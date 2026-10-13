@@ -41,7 +41,7 @@ fn help_table_entries_are_real_commands() {
 
 #[test]
 fn help_never_mentions_jini_when_disabled() {
-    let bin = env!("CARGO_BIN_EXE_mixlayer");
+    let bin = env!("CARGO_BIN_EXE_mxl");
     let mut checked = 0;
     let extra = [(String::new(), false), ("agent-context".to_string(), false)];
     for (p, experimental) in extra.into_iter().chain(all_paths()) {

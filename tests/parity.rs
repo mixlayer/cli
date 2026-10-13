@@ -10,7 +10,7 @@ use serde_json::Value;
 
 fn rust_context(jini: bool) -> Value {
     let home = tempfile::tempdir().unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_mixlayer"))
+    let out = Command::new(env!("CARGO_BIN_EXE_mxl"))
         .arg("agent-context")
         .env("MIXLAYER_HOME", home.path())
         .env("MIXLAYER_ENABLE_JINI", if jini { "1" } else { "0" })

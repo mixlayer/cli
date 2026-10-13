@@ -9,7 +9,7 @@ You need Rust (the toolchain in `rust-toolchain.toml`; rustup installs it for yo
 ```sh
 git clone https://github.com/mixlayer/cli
 cd cli
-cargo build --release      # target/release/mixlayer and mixlayer-mcp
+cargo build --release      # target/release/mxl and mxl-mcp
 cargo test                 # unit and parity tests, no network
 cd parity/e2e && go test .   # the release binary against a local fake API
 ```
@@ -27,9 +27,9 @@ cd parity/e2e && go test .   # the release binary against a local fake API
   - `CHANGELOG.md`, under Unreleased.
   - The local MCP server picks the command up as a tool automatically; mark it `mcp:hidden` if it handles secrets or private data.
 
-  Users get the new skill when they rerun `mixlayer agent setup --yes`.
+  Users get the new skill when they rerun `mxl agent setup --yes`.
 - Never put an API key in a command argument, a test fixture or a log line.
 
 ## Reporting bugs
 
-Open an issue with the command you ran, what you expected and `mixlayer doctor --json` output. For security problems, see [SECURITY.md](SECURITY.md).
+Open an issue with the command you ran, what you expected and `mxl doctor --json` output. For security problems, see [SECURITY.md](SECURITY.md).

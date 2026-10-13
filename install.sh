@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install the Mixlayer CLI (mixlayer and mixlayer-mcp) from GitHub Releases.
+# Install the Mixlayer CLI (mxl and mxl-mcp) from GitHub Releases.
 #
 #   curl -fsSL https://github.com/mixlayer/cli/releases/latest/download/install.sh | sh
 #
@@ -70,7 +70,7 @@ got="$(sha256 "$tmp/$archive")"
 
 tar -xzf "$tmp/$archive" -C "$tmp"
 mkdir -p "$dir"
-for bin in mixlayer mixlayer-mcp; do
+for bin in mxl mxl-mcp; do
 	src="$tmp/mixlayer-$target/$bin"
 	[ -f "$src" ] || fail "$bin missing from $archive"
 	# Replace atomically so a running copy is not corrupted.
@@ -79,9 +79,22 @@ for bin in mixlayer mixlayer-mcp; do
 	mv -f "$dir/.$bin.new" "$dir/$bin"
 done
 
-echo "Installed $(MIXLAYER_NO_AGENT_DETECT=1 "$dir/mixlayer" version) to $dir"
+if [ "${MIXLAYER_NO_COMPAT:-0}" != 1 ]; then
+	if [ -x "$dir/mixlayer" ] && MIXLAYER_NO_AGENT_DETECT=1 "$dir/mixlayer" version 2>/dev/null | grep -qi Mixlayer; then
+		if [ -e "$dir/mixlayer-mcp" ] || [ -L "$dir/mixlayer-mcp" ]; then
+			rm -f "$dir/mixlayer-mcp"
+			ln -s mxl-mcp "$dir/mixlayer-mcp"
+			echo "Updated legacy mixlayer-mcp to point at mxl-mcp."
+		fi
+		rm -f "$dir/mixlayer"
+		ln -s mxl "$dir/mixlayer"
+		echo "Updated legacy mixlayer to point at mxl."
+	fi
+fi
+
+echo "Installed $(MIXLAYER_NO_AGENT_DETECT=1 "$dir/mxl" version) to $dir"
 case ":$PATH:" in
 *":$dir:"*) ;;
 *) echo "Add $dir to your PATH, for example: export PATH=\"$dir:\$PATH\"" ;;
 esac
-echo "Next: create a key at https://console.mixlayer.com/app/api-keys, then run 'mixlayer doctor'."
+echo "Next: create a key at https://console.mixlayer.com/app/api-keys, then run 'mxl doctor'. Re-run 'mxl agent setup --yes' to update MCP registrations."

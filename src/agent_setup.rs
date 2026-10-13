@@ -65,6 +65,8 @@ struct Entry {
     mcp_hash: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     mcp_snippet: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    models: Option<Value>,
 }
 
 fn is_false(v: &bool) -> bool {
@@ -96,11 +98,7 @@ pub fn mcp_binary() -> Option<PathBuf> {
             std::env::current_dir().ok()?.join(p)
         });
     }
-    let name = if cfg!(windows) {
-        "mixlayer-mcp.exe"
-    } else {
-        "mixlayer-mcp"
-    };
+    let name = if cfg!(windows) { "mxl-mcp.exe" } else { "mxl-mcp" };
     if let Ok(exe) = std::env::current_exe() {
         let sibling = exe.with_file_name(name);
         if sibling.is_file() {
@@ -139,7 +137,7 @@ pub fn run(mut opts: Options) -> Result<Report> {
     if !opts.dry_run && !opts.uninstall && targets.iter().any(|a| *a != "hermes") {
         let bin = opts.mcp_binary.clone().or_else(mcp_binary);
         if !bin.as_deref().is_some_and(executable) {
-            bail!("mixlayer-mcp executable not found; build or install it beside mixlayer before setup");
+            bail!("mxl-mcp executable not found; build or install it beside mxl before setup");
         }
         opts.mcp_binary = bin;
     }
@@ -384,6 +382,7 @@ const LEGACY_SKILL_HASHES: &[&str] = &[
     "9e1fb25ea91c8b5397a62e05438b15e9ce23d0a7f9c194a5ec7a60ed877fa473",
     "f2d2fbcc9c097023f01565e43b43f89b77dd2cae557a37ff792d594c98cca5c6",
     "1d3e4996a5bd7fc5420e852aadfecf55069a3cb4ed258b4831c57415e529a027", // v0.1.0
+    "d721d4df4d2db507db146231866e2b3a8905a2754fd63fa477cdbb259247cea6", // renamed command fixture
 ];
 
 /// SHA-256 over every file in a skill directory: sorted `/`-separated relative
@@ -551,7 +550,7 @@ fn skill_action(report: &mut Report, agent: &str, path: &Path, rec: &mut Entry, 
                     Some(path),
                     "modified_skip",
                     Some(
-                        "the installed skill was edited; remove it or merge the new version by hand (see `mixlayer agent skill path`)",
+                        "the installed skill was edited; remove it or merge the new version by hand (see `mxl agent skill path`)",
                     ),
                     None,
                 );
@@ -630,7 +629,7 @@ fn mcp_action(report: &mut Report, agent: &str, home: &Path, rec: &mut Entry, op
             "mcp",
             bin.as_deref(),
             "missing_binary",
-            Some("build or install mixlayer-mcp beside mixlayer"),
+            Some("build or install mxl-mcp beside mxl"),
             None,
         );
         return Ok(false);
@@ -928,6 +927,24 @@ fn json_mcp(
     }
     let value = server.json.clone();
     if let Some(current) = current {
+        if rec.mcp_installed && Some(&current) == rec.mcp_value.as_ref() {
+            if current == value {
+                action(report, agent, kind, Some(path), "unchanged", None, None);
+                return Ok(false);
+            }
+            if opts.dry_run {
+                action(report, agent, kind, Some(path), "would_update", None, None);
+                return Ok(false);
+            }
+            servers.insert(server.name.into(), value.clone());
+            doc.insert("mcpServers".into(), Value::Object(servers));
+            let mut bytes = serde_json::to_vec_pretty(&doc)?;
+            bytes.push(b'\n');
+            write_config(path, &bytes)?;
+            rec.mcp_value = Some(value);
+            action(report, agent, kind, Some(path), "updated", None, None);
+            return Ok(true);
+        }
         action(
             report,
             agent,
@@ -1003,6 +1020,33 @@ fn toml_mcp(
         action(report, agent, kind, Some(path), "removed", None, None);
         return Ok(true);
     }
+    if exists && rec.mcp_installed && !rec.mcp_snippet.is_empty() {
+        let raw = String::from_utf8(bytes.clone())?;
+        if raw.contains(&rec.mcp_snippet) {
+            let new_snippet = format!(
+                "{}# mxl agent setup begin\n[mcp_servers.{}]\n{}# mxl agent setup end\n",
+                if rec.mcp_snippet.starts_with("\n\n") {
+                    "\n\n"
+                } else {
+                    ""
+                },
+                server.name,
+                server.toml
+            );
+            if rec.mcp_snippet == new_snippet {
+                action(report, agent, kind, Some(path), "unchanged", None, None);
+                return Ok(false);
+            }
+            if opts.dry_run {
+                action(report, agent, kind, Some(path), "would_update", None, None);
+                return Ok(false);
+            }
+            write_config(path, raw.replacen(&rec.mcp_snippet, &new_snippet, 1).as_bytes())?;
+            rec.mcp_snippet = new_snippet;
+            action(report, agent, kind, Some(path), "updated", None, None);
+            return Ok(true);
+        }
+    }
     if exists {
         action(
             report,
@@ -1031,7 +1075,7 @@ fn toml_mcp(
         "\n\n"
     };
     let snippet = format!(
-        "{prefix}# mixlayer agent setup begin\n[mcp_servers.{}]\n{}# mixlayer agent setup end\n",
+        "{prefix}# mxl agent setup begin\n[mcp_servers.{}]\n{}# mxl agent setup end\n",
         server.name, server.toml
     );
     let mut updated = bytes;
@@ -1273,7 +1317,7 @@ fn status_label(status: &str) -> String {
         "modified_skip" => "left alone (you edited it)".into(),
         "conflict_skip" => "left alone (another server uses that name)".into(),
         "not_managed" => "left alone (not added by Mixlayer)".into(),
-        "missing_binary" => "can't find mixlayer-mcp".into(),
+        "missing_binary" => "can't find mxl-mcp".into(),
         "no_platform_permission" => "key lacks platform permissions".into(),
         "unsupported" => "not supported here".into(),
         "outdated" => "out of date".into(),
@@ -1329,7 +1373,7 @@ mod human_tests {
             kind: kind.into(),
             path: path.map(Into::into),
             status: status.into(),
-            command: Some("claude mcp add --scope user mixlayer -- /x/mixlayer-mcp".into()),
+            command: Some("claude mcp add --scope user mixlayer -- /x/mxl-mcp".into()),
             note: note.map(Into::into),
         }
     }
@@ -1395,7 +1439,7 @@ mod human_tests {
         };
         let text = render_human(&report, None, false);
         assert!(text.contains("Mixlayer Platform\n  ! API key missing\n    MIXLAYER_API_KEY is not set here.\n"));
-        assert!(text.contains("  ! MCP server can't find mixlayer-mcp\n    run: claude mcp add"));
+        assert!(text.contains("  ! MCP server can't find mxl-mcp\n    run: claude mcp add"));
         assert!(text.ends_with("Done, with 2 item(s) to check above.\n"));
     }
 

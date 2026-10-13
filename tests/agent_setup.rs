@@ -23,7 +23,7 @@ fn setup(
     uninstall: bool,
     path: Option<&Path>,
 ) -> Result<Value, String> {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_mixlayer"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_mxl"));
     cmd.args(["agent", "setup", "--agent", agent])
         .env("HOME", home)
         .env("USERPROFILE", home)
@@ -90,7 +90,7 @@ fn each_agent_preview_install_idempotent_uninstall() {
     for agent in ["claude-code", "codex", "cursor", "hermes", "claude-desktop"] {
         let home = tempfile::tempdir().unwrap();
         let binaries = tempfile::tempdir().unwrap();
-        let mcp = binaries.path().join("mixlayer-mcp");
+        let mcp = binaries.path().join("mxl-mcp");
         executable(&mcp, "#!/bin/sh\nexit 0\n");
         executable(
             &binaries.path().join("claude"),
@@ -156,7 +156,7 @@ fn restores_preexisting_skill_and_rejects_missing_mcp() {
         "original user skill\n"
     );
     let binaries = tempfile::tempdir().unwrap();
-    let mcp = binaries.path().join("mixlayer-mcp");
+    let mcp = binaries.path().join("mxl-mcp");
     executable(&mcp, "#!/bin/sh\nexit 0\n");
     setup(home.path(), &mcp, "codex", true, false, None).unwrap();
     setup(home.path(), &mcp, "codex", true, true, None).unwrap();
@@ -171,7 +171,7 @@ fn restores_preexisting_skill_and_rejects_missing_mcp() {
 fn preserves_unrelated_json_and_backs_up_before_edit() {
     let home = tempfile::tempdir().unwrap();
     let binaries = tempfile::tempdir().unwrap();
-    let mcp = binaries.path().join("mixlayer-mcp");
+    let mcp = binaries.path().join("mxl-mcp");
     executable(&mcp, "#!/bin/sh\nexit 0\n");
     let config = home.path().join(".cursor/mcp.json");
     fs::create_dir_all(config.parent().unwrap()).unwrap();
@@ -199,7 +199,7 @@ fn preserves_unrelated_json_and_backs_up_before_edit() {
 fn codex_toml_merge_preserves_original_bytes() {
     let home = tempfile::tempdir().unwrap();
     let binaries = tempfile::tempdir().unwrap();
-    let mcp = binaries.path().join("mixlayer-mcp");
+    let mcp = binaries.path().join("mxl-mcp");
     executable(&mcp, "#!/bin/sh\nexit 0\n");
     let config = home.path().join(".codex/config.toml");
     fs::create_dir_all(config.parent().unwrap()).unwrap();
@@ -222,7 +222,7 @@ fn codex_toml_merge_preserves_original_bytes() {
 fn claude_modified_entry_is_not_removed() {
     let home = tempfile::tempdir().unwrap();
     let binaries = tempfile::tempdir().unwrap();
-    let mcp = binaries.path().join("mixlayer-mcp");
+    let mcp = binaries.path().join("mxl-mcp");
     executable(&mcp, "#!/bin/sh\nexit 0\n");
     executable(
         &binaries.path().join("claude"),
@@ -241,10 +241,10 @@ fn claude_modified_entry_is_not_removed() {
 fn setup_requires_true_explicit_yes() {
     let home = tempfile::tempdir().unwrap();
     let binaries = tempfile::tempdir().unwrap();
-    let mcp = binaries.path().join("mixlayer-mcp");
+    let mcp = binaries.path().join("mxl-mcp");
     executable(&mcp, "#!/bin/sh\nexit 0\n");
     for yes in [None, Some("--yes=false")] {
-        let mut cmd = Command::new(env!("CARGO_BIN_EXE_mixlayer"));
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_mxl"));
         cmd.args(["agent", "setup", "--agent", "codex"])
             .env("HOME", home.path())
             .env("USERPROFILE", home.path())
@@ -284,7 +284,7 @@ fn skill_status(report: &Value) -> &str {
 }
 
 fn doctor(home: &Path) -> Value {
-    let output = Command::new(env!("CARGO_BIN_EXE_mixlayer"))
+    let output = Command::new(env!("CARGO_BIN_EXE_mxl"))
         .args(["doctor", "--json", "--timeout", "40ms"])
         .env("HOME", home)
         .env("USERPROFILE", home)
@@ -307,7 +307,7 @@ fn current_skill() -> String {
 fn upgrade_from_v0_1_0_updates_the_installed_skill() {
     let home = tempfile::tempdir().unwrap();
     let binaries = tempfile::tempdir().unwrap();
-    let mcp = binaries.path().join("mixlayer-mcp");
+    let mcp = binaries.path().join("mxl-mcp");
     executable(&mcp, "#!/bin/sh\nexit 0\n");
     let skill = skill_path(home.path(), "codex").unwrap();
     copy_tree(
@@ -351,7 +351,7 @@ fn upgrade_from_v0_1_0_updates_the_installed_skill() {
 fn recorded_hash_lets_setup_update_and_remove_an_older_copy() {
     let home = tempfile::tempdir().unwrap();
     let binaries = tempfile::tempdir().unwrap();
-    let mcp = binaries.path().join("mixlayer-mcp");
+    let mcp = binaries.path().join("mxl-mcp");
     executable(&mcp, "#!/bin/sh\nexit 0\n");
     setup(home.path(), &mcp, "cursor", true, false, None).unwrap();
     let state_path = home.path().join(".config/mixlayer/agent-setup.json");
@@ -382,7 +382,7 @@ fn recorded_hash_lets_setup_update_and_remove_an_older_copy() {
 fn edited_skill_is_left_alone() {
     let home = tempfile::tempdir().unwrap();
     let binaries = tempfile::tempdir().unwrap();
-    let mcp = binaries.path().join("mixlayer-mcp");
+    let mcp = binaries.path().join("mxl-mcp");
     executable(&mcp, "#!/bin/sh\nexit 0\n");
     setup(home.path(), &mcp, "codex", true, false, None).unwrap();
     let skill = skill_path(home.path(), "codex").unwrap();
@@ -416,4 +416,28 @@ fn v0_1_0_hash() -> String {
         h.update([0]);
     }
     hex::encode(h.finalize())
+}
+
+#[test]
+fn managed_legacy_mcp_entry_updates_to_new_binary_name() {
+    for agent in ["codex", "cursor"] {
+        let home = tempfile::tempdir().unwrap();
+        let binaries = tempfile::tempdir().unwrap();
+        let old = binaries.path().join("mixlayer-mcp");
+        let new = binaries.path().join("mxl-mcp");
+        executable(&old, "#!/bin/sh\nexit 0\n");
+        executable(&new, "#!/bin/sh\nexit 0\n");
+        let first = setup(home.path(), &old, agent, true, false, None).unwrap();
+        assert!(statuses(&first).contains(&"registered"));
+        let second = setup(home.path(), &new, agent, true, false, None).unwrap();
+        assert!(statuses(&second).contains(&"updated"), "{agent}: {second}");
+        let config = if agent == "codex" {
+            home.path().join(".codex/config.toml")
+        } else {
+            home.path().join(".cursor/mcp.json")
+        };
+        let contents = fs::read_to_string(config).unwrap();
+        assert!(contents.contains("mxl-mcp"));
+        assert!(!contents.contains("mixlayer-mcp"));
+    }
 }

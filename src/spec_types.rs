@@ -130,6 +130,9 @@ pub const RUST_ONLY: &[(&str, Option<&str>)] = &[
     ("audit", None),
     ("agent setup", Some("key-env")),
     ("agent setup", Some("platform")),
+    ("agent setup", Some("models")),
+    ("auth token", None),
+    ("models sync", None),
 ];
 
 /// Finds a command by its space-separated path below the root, e.g. `shield ask`.

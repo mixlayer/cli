@@ -20,7 +20,7 @@ Type "export PS1='\[\e[38;2;255;154;77m\]$\[\e[0m\] ' PATH=$MLBIN_DIR:$PATH; cd 
 Enter
 Type "# Ask the top model which customers will churn. Names and companies never leave this machine."
 Enter
-Type "mixlayer shield ask 'Which customers will churn, and what should we do this week? One plain-text line each.' \"
+Type "mxl shield ask 'Which customers will churn, and what should we do this week? One plain-text line each.' \"
 Enter
 Type "  --data customers.csv --mask-columns customer,company"
 Enter
@@ -33,7 +33,7 @@ Enter
 Type "# What the model actually saw"
 Sleep 400ms
 Enter
-Type "mixlayer shield redact customers.csv --mask-columns customer,company | cut -d, -f1,2,4,11 | head -5"
+Type "mxl shield redact customers.csv --mask-columns customer,company | cut -d, -f1,2,4,11 | head -5"
 Sleep 300ms
 Enter
 Sleep 3s

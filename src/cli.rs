@@ -14,9 +14,9 @@ pub const ABOUT: &str = "Use Mixlayer models from your terminal and your coding 
 pub const LONG_ABOUT: &str = "Use Mixlayer models from your terminal and your coding agent.
 
 Start here:
-  mixlayer doctor                      check your key and connection
-  mixlayer models list --live-prices   see what you can call and what it costs
-  mixlayer ask \"question\" --model <model-id>
+  mxl doctor                      check your key and connection
+  mxl models list --live-prices   see what you can call and what it costs
+  mxl ask \"question\" --model <model-id>
 
 Compare and save:   ladder, escalate, council, compare, savings
 Private data:       shield ask, shield scan, shield redact, vault
@@ -67,7 +67,7 @@ pub const GLOBAL_FLAGS: &[(&str, Kind, &str, Option<&str>)] = &[
     (
         "profile",
         Kind::Str,
-        "Apply values from a saved profile (see 'mixlayer profile list')",
+        "Apply values from a saved profile (see 'mxl profile list')",
         None,
     ),
     ("quiet", Kind::Bool, "Bare output, one value per line", None),
@@ -115,7 +115,7 @@ pub fn jini_enabled() -> bool {
 
 /// The full clap tree.
 pub fn build() -> Command {
-    let mut root = Command::new("mixlayer")
+    let mut root = Command::new("mxl")
         .version(VERSION)
         .about(ABOUT)
         .long_about(LONG_ABOUT)
@@ -252,7 +252,7 @@ mod tests {
     fn parses_global_and_local_flags() {
         let m = build()
             .try_get_matches_from([
-                "mixlayer",
+                "mxl",
                 "--agent",
                 "shield",
                 "redact",

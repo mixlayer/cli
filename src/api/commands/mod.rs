@@ -17,6 +17,7 @@ pub fn dispatch(path: &[&str], m: &ArgMatches, g: &Globals) -> Option<anyhow::Re
     Some(match path {
         ["auth", "setup"] => auth::setup(m),
         ["auth", "set-token"] => auth::set_token(m, g),
+        ["auth", "token"] => auth::token(m),
         ["auth", "status"] => auth::status(m, g),
         ["auth", "logout"] => auth::logout(m, g),
         ["doctor"] => doctor::run(m, g),
@@ -95,16 +96,16 @@ pub(crate) fn classified(err: anyhow::Error, g: &Globals, campaign: &str) -> any
     let billing = crate::api::console_url("/app/billing", campaign);
     let hint = match (code, status) {
         (Code::Auth, Some(403)) => format!(
-            "\nhint: permission denied. Your credentials are valid but lack access to this resource.\n      Check that your credentials have the required permissions and match the API's expected auth scheme.\n      Set it with: export MIXLAYER_API_KEY=\"your-key\" (create one at {setup})\n      Run 'mixlayer doctor' to check auth status"
+            "\nhint: permission denied. Your credentials are valid but lack access to this resource.\n      Check that your credentials have the required permissions and match the API's expected auth scheme.\n      Set it with: export MIXLAYER_API_KEY=\"your-key\" (create one at {setup})\n      Run 'mxl doctor' to check auth status"
         ),
         (Code::Auth, Some(400)) => format!(
-            "\nhint: the API rejected the request — this usually means auth is missing or invalid.\n      Set it with: export MIXLAYER_API_KEY=\"your-key\" (create one at {setup})\n      Run 'mixlayer doctor' to check auth status.\n      Response: {raw}"
+            "\nhint: the API rejected the request — this usually means auth is missing or invalid.\n      Set it with: export MIXLAYER_API_KEY=\"your-key\" (create one at {setup})\n      Run 'mxl doctor' to check auth status.\n      Response: {raw}"
         ),
         (Code::Auth, _) => format!(
-            "\nhint: check your token.\n      Set it with: export MIXLAYER_API_KEY=\"your-key\" (create one at {setup})\n      Run 'mixlayer doctor' to check auth status"
+            "\nhint: check your token.\n      Set it with: export MIXLAYER_API_KEY=\"your-key\" (create one at {setup})\n      Run 'mxl doctor' to check auth status"
         ),
         (Code::Billing, _) => format!("\nhint: add prepaid credits at {billing}; do not retry"),
-        (Code::NotFound, _) => "\nhint: run `mixlayer models list` to see models available to your key".into(),
+        (Code::NotFound, _) => "\nhint: run `mxl models list` to see models available to your key".into(),
         (Code::RateLimited, _) => match api.map(|e| e.retry_after.as_str()).filter(|s| !s.is_empty()) {
             Some(after) => format!("\nhint: rate limited; Retry-After: {after}"),
             None => "\nhint: rate limited; honor Retry-After before retrying".into(),
