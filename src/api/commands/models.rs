@@ -103,7 +103,22 @@ fn live_prices(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let mut store = open_store(m)?;
     let (models, source, warning) = match load_live_catalog_from_store(m, &mut store) {
         Ok((models, source)) => (models, source, None),
-        Err(e) => (offline_live_models(), "offline_fallback".into(), Some(e.to_string())),
+        // Without a key (or when the platform is unreachable) the public price
+        // feed still answers, so show real list prices before the static list.
+        Err(e) => match fetch_public_feed(m) {
+            Ok(models) => (
+                models,
+                "public_feed".into(),
+                Some(format!(
+                    "{e}; showing public list prices (your org's access may differ)"
+                )),
+            ),
+            Err(feed) => (
+                offline_live_models(),
+                "offline_fallback".into(),
+                Some(format!("{e}; public price feed: {feed}")),
+            ),
+        },
     };
     let mut result = json!({"models": models, "source": source});
     if let Some(warning) = warning.as_ref() {
@@ -129,6 +144,63 @@ fn live_prices(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         }));
         crate::output::write_stdout(crate::output::table(&rows).as_bytes())
     }
+}
+
+/// The public, keyless price feed (`<base origin>/_openrouter/models`, the same
+/// source as mixlayer.com/pricing and `mxl models sync`). Prices there are USD
+/// per token; the live-prices table uses USD per million tokens.
+fn fetch_public_feed(m: &ArgMatches) -> anyhow::Result<Vec<Value>> {
+    let base = new_client(m)?.config.base_url;
+    let url = url::Url::parse(&base)?.join("/_openrouter/models")?;
+    let raw = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?
+        .get(url)
+        .send()?
+        .error_for_status()?
+        .json::<Value>()?;
+    let models = parse_public_feed(&raw);
+    if models.is_empty() {
+        anyhow::bail!("public price feed returned no models");
+    }
+    Ok(models)
+}
+
+fn parse_public_feed(raw: &Value) -> Vec<Value> {
+    let per_million = |v: &Value| number(Some(v)).map(|per_token| (per_token * 1e12).round() / 1e6);
+    raw.get("data")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|item| {
+            let sku = string_field(item, &["id"]);
+            if sku.is_empty() {
+                return None;
+            }
+            let pricing = &item["pricing"];
+            let modalities: Vec<String> = item["input_modalities"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect();
+            Some(live_model_value(LiveModel {
+                model_sku: sku.into(),
+                price_m_input_tokens_usd: per_million(&pricing["prompt"]),
+                price_m_output_tokens_usd: per_million(&pricing["completion"]),
+                price_m_input_cache_read_tokens_usd: per_million(&pricing["input_cache_read"]),
+                max_context_len: numeric_field(item, &["context_length"]).unwrap_or(0.0) as i64,
+                tools_supported: item["supported_features"]
+                    .as_array()
+                    .is_some_and(|f| f.iter().any(|x| x == "tools")),
+                input_modalities: (!modalities.is_empty()).then_some(modalities),
+                status: "listed".into(),
+                access: Value::Null,
+                model_type: String::new(),
+            }))
+        })
+        .collect()
 }
 
 fn offline_live_models() -> Vec<Value> {
@@ -544,6 +616,30 @@ fn offline_records() -> Vec<ModelCacheRecord> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn public_feed_prices_are_converted_to_usd_per_million() {
+        let feed = json!({"data":[
+            {"id":"deepseek/deepseek-v4.1-flash","context_length":262144,
+             "input_modalities":["text"],"supported_features":["tools","reasoning"],
+             "pricing":{"prompt":"0.0000003","completion":"0.0000012","input_cache_read":"0.000000009"}},
+            {"id":"qwen/qwen3.5-4b-free","context_length":131072,
+             "input_modalities":["text","image"],
+             "pricing":{"prompt":"0","completion":"0","input_cache_read":"0"}},
+            {"name":"no id, skipped"}
+        ]});
+        let models = parse_public_feed(&feed);
+        assert_eq!(models.len(), 2);
+        let ds = &models[0];
+        assert_eq!(ds["model_sku"], "deepseek/deepseek-v4.1-flash");
+        assert_eq!(ds["price_m_input_tokens_usd"], json!(0.3));
+        assert_eq!(ds["price_m_output_tokens_usd"], json!(1.2));
+        assert_eq!(ds["price_m_input_cache_read_tokens_usd"], json!(0.009));
+        assert_eq!(ds["max_context_len"], 262144);
+        assert_eq!(ds["tools_supported"], true);
+        assert_eq!(ds["status"], "listed");
+        assert_eq!(models[1]["price_m_output_tokens_usd"], json!(0));
+        assert!(parse_public_feed(&json!({"error":"nope"})).is_empty());
+    }
     #[test]
     fn slash_ids_are_found_inside_model_list() {
         let list = json!({"object":"list","data":[{"id":"qwen/qwen3.5-9b"},{"id":"z-ai/glm-5.3"}]});
