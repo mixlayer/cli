@@ -77,7 +77,17 @@ fn file(path: &str) -> Result<String> {
     }
 }
 fn required_file(path: &str) -> Result<String> {
-    Ok(fs::read_to_string(path)?)
+    file(path)
+}
+/// Commands that read one input file can also read piped stdin, so
+/// `echo "..." | mxl shield scan` works like `mxl shield scan -`.
+const STDIN_COMMANDS: [&str; 3] = ["shield scan", "shield redact", "shield restructure"];
+fn input(m: &ArgMatches, command: &str) -> Result<String> {
+    match words(m, command).first() {
+        Some(path) => Ok(path.clone()),
+        None if STDIN_COMMANDS.contains(&command) && !std::io::stdin().is_terminal() => Ok("-".into()),
+        None => Err(exit::usage(format!("{command} requires an argument"))),
+    }
 }
 fn text_or_file(input: &str) -> Result<String> {
     if input == "-" || Path::new(input).is_file() {
@@ -153,6 +163,7 @@ pub fn dispatch(path: &[&str], m: &ArgMatches, g: &Globals) -> Option<Result<()>
         command.as_str(),
         "shield ask" | "shield scan" | "shield redact" | "shield restructure" | "shield ingest" | "vault rehydrate"
     ) && words(m, &command).is_empty()
+        && !(STDIN_COMMANDS.contains(&command.as_str()) && !std::io::stdin().is_terminal())
     {
         let mut root = crate::cli::build();
         let mut target = &mut root;
@@ -184,7 +195,7 @@ pub fn dispatch(path: &[&str], m: &ArgMatches, g: &Globals) -> Option<Result<()>
 }
 
 fn scan(m: &ArgMatches, g: &Globals) -> Result<()> {
-    let text = required_file(&required(m, "shield scan")?)?;
+    let text = required_file(&input(m, "shield scan")?)?;
     let runtime = Runtime::new(m, g, arg(m, "detector").unwrap_or("regex"))?;
     let db = store(m)?;
     let (entities, _) = runtime
@@ -210,7 +221,7 @@ fn scan(m: &ArgMatches, g: &Globals) -> Result<()> {
 
 fn redact(m: &ArgMatches, g: &Globals) -> Result<()> {
     let mut db = store(m)?;
-    let text = required_file(&required(m, "shield redact")?)?;
+    let text = required_file(&input(m, "shield redact")?)?;
     let mut runtime = Runtime::new(m, g, arg(m, "detector").unwrap_or("regex"))?;
     runtime.extra_terms = columns(m, &text)?;
     let (redacted, _) = runtime
@@ -227,7 +238,7 @@ fn redact(m: &ArgMatches, g: &Globals) -> Result<()> {
 }
 
 fn restructure(m: &ArgMatches) -> Result<()> {
-    let text = required_file(&required(m, "shield restructure")?)?;
+    let text = required_file(&input(m, "shield restructure")?)?;
     let out = shield::restructure(
         &text,
         &shield::RestructureOptions {

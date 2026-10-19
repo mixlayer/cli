@@ -248,6 +248,35 @@ fn ask_near_miss_only_restores_request_tokens() {
 }
 
 #[test]
+fn shield_scan_and_redact_read_piped_stdin() {
+    let home = tempfile::tempdir().unwrap();
+    let db = home.path().join("vault.db");
+    let db = db.to_str().unwrap();
+    let text = "Zora Quill: zora@fiction.example";
+    // No file argument: piped stdin is the input (was: printed help, exit 0).
+    let scan = cli(
+        home.path(),
+        &["shield", "scan", "--db", db, "--max-risk", "9", "--json"],
+        Some(text),
+    );
+    assert!(scan.status.success(), "{}", String::from_utf8_lossy(&scan.stderr));
+    assert_eq!(val(&scan)["risk"], 9);
+    // An explicit "-" also reads stdin (was: "No such file or directory").
+    let dash = cli(home.path(), &["shield", "scan", "-", "--db", db, "--json"], Some(text));
+    assert_eq!(dash.status.code(), Some(6));
+    assert_eq!(val(&dash)["risk"], 9);
+    let redacted = cli(home.path(), &["shield", "redact", "--db", db], Some(text));
+    assert!(
+        redacted.status.success(),
+        "{}",
+        String::from_utf8_lossy(&redacted.stderr)
+    );
+    let out = String::from_utf8_lossy(&redacted.stdout);
+    assert!(out.contains("EMAIL_"), "{out}");
+    assert!(!out.contains("zora@fiction.example"), "{out}");
+}
+
+#[test]
 fn shield_local_commands_and_exit_codes() {
     let home = tempfile::tempdir().unwrap();
     let db = home.path().join("vault.db");
