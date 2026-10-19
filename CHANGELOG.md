@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.1 (2026-10-19)
+
+- `mxl shield scan`, `redact` and `restructure` read piped stdin when no file is given, so `echo "..." | mxl shield scan` works like `mxl shield scan -`. Before, a pipe printed the help text.
+- `mxl models list --live-prices` shows public list prices without an API key. It reads the same public price feed as mixlayer.com/pricing and `mxl models sync`, so models (including DeepSeek) no longer show "unknown". The built-in list is still the fallback when the feed can't be reached.
+
 ## v0.3.0 (2026-10-13)
 
 - The command is now `mxl`; the MCP executable is `mxl-mcp`. Re-running the installer points an existing `mixlayer` or `mixlayer-mcp` at the new names, so agent configs from v0.2 keep working.
