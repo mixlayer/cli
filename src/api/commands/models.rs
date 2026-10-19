@@ -102,7 +102,16 @@ fn live_prices(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     }
     let mut store = open_store(m)?;
     let (models, source, warning) = match load_live_catalog_from_store(m, &mut store) {
-        Ok((models, source)) => (models, source, None),
+        Ok((mut models, source)) => {
+            let mut warning = None;
+            if source == "ids_only"
+                && let Ok(feed) = fetch_public_feed(m)
+                && fill_prices_from_feed(&mut models, &feed) > 0
+            {
+                warning = Some("prices come from the public price feed; your org's prices may differ".into());
+            }
+            (models, source, warning)
+        }
         // Without a key (or when the platform is unreachable) the public price
         // feed still answers, so show real list prices before the static list.
         Err(e) => match fetch_public_feed(m) {
@@ -144,6 +153,32 @@ fn live_prices(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         }));
         crate::output::write_stdout(crate::output::table(&rows).as_bytes())
     }
+}
+
+fn fill_prices_from_feed(models: &mut [Value], feed: &[Value]) -> usize {
+    let fields = [
+        "price_m_input_tokens_usd",
+        "price_m_output_tokens_usd",
+        "price_m_input_cache_read_tokens_usd",
+    ];
+    let mut filled = 0;
+    for model in models {
+        if !fields.iter().all(|field| model[*field].is_null()) {
+            continue;
+        }
+        let Some(sku) = model["model_sku"].as_str() else {
+            continue;
+        };
+        if let Some(row) = feed.iter().find(|row| row["model_sku"].as_str() == Some(sku)) {
+            for field in fields {
+                model[field] = row[field].clone();
+            }
+            if fields.iter().any(|field| !model[*field].is_null()) {
+                filled += 1;
+            }
+        }
+    }
+    filled
 }
 
 /// The public, keyless price feed (`<base origin>/_openrouter/models`, the same
@@ -615,6 +650,66 @@ fn offline_records() -> Vec<ModelCacheRecord> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn feed_prices_fill_matching_skus() {
+        let mut models = vec![json!({
+            "model_sku": "matching/model", "status": "listed",
+            "price_m_input_tokens_usd": null, "price_m_output_tokens_usd": null,
+            "price_m_input_cache_read_tokens_usd": null
+        })];
+        let feed = vec![json!({
+            "model_sku": "matching/model", "status": "active",
+            "price_m_input_tokens_usd": 0.3, "price_m_output_tokens_usd": 1.2,
+            "price_m_input_cache_read_tokens_usd": 0.009
+        })];
+        assert_eq!(fill_prices_from_feed(&mut models, &feed), 1);
+        assert_eq!(models[0]["price_m_input_tokens_usd"], json!(0.3));
+        assert_eq!(models[0]["price_m_output_tokens_usd"], json!(1.2));
+        assert_eq!(models[0]["price_m_input_cache_read_tokens_usd"], json!(0.009));
+        assert_eq!(models[0]["status"], "listed");
+    }
+
+    #[test]
+    fn feed_prices_leave_non_matching_skus_null() {
+        let mut models = vec![json!({
+            "model_sku": "missing/model",
+            "price_m_input_tokens_usd": null, "price_m_output_tokens_usd": null,
+            "price_m_input_cache_read_tokens_usd": null
+        })];
+        let original = models.clone();
+        let feed = vec![json!({
+            "model_sku": "other/model",
+            "price_m_input_tokens_usd": 0.3, "price_m_output_tokens_usd": 1.2,
+            "price_m_input_cache_read_tokens_usd": 0.009
+        })];
+        assert_eq!(fill_prices_from_feed(&mut models, &feed), 0);
+        assert_eq!(models, original);
+    }
+
+    #[test]
+    fn feed_prices_do_not_overwrite_existing_prices() {
+        let feed = vec![json!({
+            "model_sku": "matching/model",
+            "price_m_input_tokens_usd": 0.3, "price_m_output_tokens_usd": 1.2,
+            "price_m_input_cache_read_tokens_usd": 0.009
+        })];
+        for field in [
+            "price_m_input_tokens_usd",
+            "price_m_output_tokens_usd",
+            "price_m_input_cache_read_tokens_usd",
+        ] {
+            let mut models = vec![json!({
+                "model_sku": "matching/model",
+                "price_m_input_tokens_usd": null, "price_m_output_tokens_usd": null,
+                "price_m_input_cache_read_tokens_usd": null
+            })];
+            models[0][field] = json!(0.0);
+            let original = models.clone();
+            assert_eq!(fill_prices_from_feed(&mut models, &feed), 0);
+            assert_eq!(models, original);
+        }
+    }
 
     #[test]
     fn public_feed_prices_are_converted_to_usd_per_million() {

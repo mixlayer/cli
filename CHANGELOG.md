@@ -3,7 +3,7 @@
 ## v0.3.1 (2026-10-19)
 
 - `mxl shield scan`, `redact` and `restructure` read piped stdin when no file is given, so `echo "..." | mxl shield scan` works like `mxl shield scan -`. Before, a pipe printed the help text.
-- `mxl models list --live-prices` shows public list prices without an API key. It reads the same public price feed as mixlayer.com/pricing and `mxl models sync`, so models (including DeepSeek) no longer show "unknown". The built-in list is still the fallback when the feed can't be reached.
+- `mxl models list --live-prices` shows public list prices without an API key. It reads the same public price feed as mixlayer.com/pricing and `mxl models sync`, so models (including DeepSeek) no longer show "unknown". The built-in list is still the fallback when the feed can't be reached. It also fills prices when your key can list models but not your organization's prices.
 
 ## v0.3.0 (2026-10-13)
 
