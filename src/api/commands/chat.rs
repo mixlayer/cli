@@ -100,10 +100,23 @@ pub fn ask(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         return Err(exit::usage("question is required"));
     };
     let explicit = arg(m, "model").filter(|s| !s.is_empty());
+    let mut catalog = match explicit {
+        Some(_) => None,
+        None if g.dry_run => models::cached_live_catalog(m).ok(),
+        None => models::load_live_catalog(m).ok(),
+    };
+    let model = explicit.map(str::to_owned).unwrap_or_else(|| {
+        catalog
+            .as_ref()
+            .map(|(rows, source)| models::default_model(rows, source))
+            .unwrap_or_else(|| "z-ai/glm-5.3".into())
+    });
     if g.dry_run {
-        let model = explicit.unwrap_or("z-ai/glm-5.3");
+        let source = catalog
+            .as_ref()
+            .map_or("offline_fallback", |(_, source)| source.as_str());
         return print(
-            &json!({"dry_run": true, "endpoint": "/chat/completions", "models": [model], "messages": [{"role": "user", "content": prompt}], "catalog_source": if explicit.is_some() { "explicit" } else { "offline_fallback" }}),
+            &json!({"dry_run": true, "endpoint": "/chat/completions", "models": [model], "messages": [{"role": "user", "content": prompt}], "catalog_source": if explicit.is_some() { "explicit" } else { source }}),
             g,
         );
     }
@@ -112,17 +125,6 @@ pub fn ask(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         .parse::<i64>()
         .map_err(|e| exit::usage(format!("invalid --seed: {e}")))?;
     let thinking = bool_arg(m, "show-thinking");
-    let mut catalog = if explicit.is_none() {
-        models::load_live_catalog(m).ok()
-    } else {
-        None
-    };
-    let model = explicit.map(str::to_owned).unwrap_or_else(|| {
-        catalog
-            .as_ref()
-            .map(|(rows, source)| models::default_model(rows, source))
-            .unwrap_or_else(|| "z-ai/glm-5.3".into())
-    });
     let mut body = json!({"model": model, "messages": [{"role": "user", "content": prompt}], "thinking": thinking});
     if seed != 0 {
         body["seed"] = seed.into();

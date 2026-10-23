@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `--dry-run` on `ladder`, `escalate`, `council`, `compare`, `ask` and `shield ask` now shows the models the real run will call. It picks them from the live catalog the CLI cached in the last hour (any real run or `mxl models list --live-prices` refreshes it) and still sends no requests. Before, a dry run without `--rungs` or `--model` always showed the built-in list, so a model in your catalog such as DeepSeek was missing from the preview and then called in the real run. `catalog_source` says which catalog the preview used; with no cache it is `offline_fallback`, as before.
+
 ## v0.3.1 (2026-10-19)
 
 - `mxl shield scan`, `redact` and `restructure` read piped stdin when no file is given, so `echo "..." | mxl shield scan` works like `mxl shield scan -`. Before, a pipe printed the help text.
