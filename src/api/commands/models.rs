@@ -261,6 +261,14 @@ pub(crate) fn load_live_catalog(m: &ArgMatches) -> anyhow::Result<(Vec<Value>, S
     load_live_catalog_from_store(m, &mut open_store(m)?)
 }
 
+/// The cached live catalog, never the network: --dry-run sends no requests,
+/// but its preview should pick the same models the real run will.
+pub(crate) fn cached_live_catalog(m: &ArgMatches) -> anyhow::Result<(Vec<Value>, String)> {
+    let auth = new_client(m)?.config.auth_header;
+    let scope = catalog_scope(&crate::api::platform_base()?, &auth);
+    cached_or_fetch(&mut open_store(m)?, &scope, || anyhow::bail!("no cached live catalog"))
+}
+
 fn open_store(m: &ArgMatches) -> anyhow::Result<Store> {
     match m.try_get_one::<String>("db").ok().flatten().filter(|p| !p.is_empty()) {
         Some(path) => Store::open(path),

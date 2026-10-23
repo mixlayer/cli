@@ -88,8 +88,13 @@ fn rungs(spec: &str) -> Vec<String> {
         .map(str::to_owned)
         .collect()
 }
-fn catalog(m: &ArgMatches) -> (Vec<Value>, String) {
-    models::load_live_catalog(m).unwrap_or((Vec::new(), "offline_fallback".into()))
+fn catalog(m: &ArgMatches, g: &Globals) -> (Vec<Value>, String) {
+    let live = if g.dry_run {
+        models::cached_live_catalog(m)
+    } else {
+        models::load_live_catalog(m)
+    };
+    live.unwrap_or((Vec::new(), "offline_fallback".into()))
 }
 fn active_rungs(rows: &[Value]) -> Vec<String> {
     let mut ranked: Vec<_> = rows
@@ -390,16 +395,16 @@ fn result_array(results: &[ResultRow]) -> Value {
 pub fn ladder(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let p = prompt(m, "ladder")?;
     let spec = arg(m, "rungs").unwrap_or("all");
+    let (rows, source) = catalog(m, g);
+    let models = catalog_rungs(spec, &rows, &source);
     if g.dry_run {
         return print(
-            &json!({"dry_run":true,"endpoint":"/chat/completions","models":rungs(spec),"prompt":p,"catalog_source":if spec=="all" {"offline_fallback"} else {"explicit"}}),
+            &json!({"dry_run":true,"endpoint":"/chat/completions","models":models,"prompt":p,"catalog_source":if spec=="all" {source.as_str()} else {"explicit"}}),
             g,
         );
     }
     let seed = parse_i64(m, "seed", 0)?;
     let mut s = db(m)?;
-    let (rows, source) = catalog(m);
-    let models = catalog_rungs(spec, &rows, &source);
     let mut results = across(m, &p, &models, bool_arg(m, "reasoning"), seed)?;
     apply_costs(&mut results, &rows);
     let first = first_confident(&results).to_owned();
@@ -453,8 +458,10 @@ pub fn escalate(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     if let Some(model) = &checker_model {
         super::decision::validate_checker(model, &p)?;
     }
+    let (rows, source) = catalog(m, g);
+    let configured = catalog_rungs(spec, &rows, &source);
     if g.dry_run {
-        let mut v = json!({"dry_run":true,"endpoint":"/chat/completions","models":rungs(spec),"prompt":p,"catalog_source":if spec=="all" {"offline_fallback"} else {"explicit"},"checker":checker});
+        let mut v = json!({"dry_run":true,"endpoint":"/chat/completions","models":configured,"prompt":p,"catalog_source":if spec=="all" {source.as_str()} else {"explicit"},"checker":checker});
         if let Some(model) = checker_model {
             v["checker_url"] = super::decision::target_url(m)?.into();
             v["checker_body_template"] = super::decision::checker_request(&model, &p, "<rung response>");
@@ -463,8 +470,6 @@ pub fn escalate(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         return print(&v, g);
     }
     let mut s = db(m)?;
-    let (rows, source) = catalog(m);
-    let configured = catalog_rungs(spec, &rows, &source);
     let mut results = Vec::new();
     let mut checker_error = None;
     for rung in &configured {
@@ -577,22 +582,22 @@ pub fn council(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let p = prompt(m, "council")?;
     let spec = arg(m, "members").unwrap_or("all");
     let default_judge = arg(m, "judge").unwrap_or("z-ai/glm-5.3");
-    if g.dry_run {
-        let mut all = rungs(spec);
-        all.push(default_judge.into());
-        return print(
-            &json!({"dry_run":true,"endpoint":"/chat/completions","models":all,"prompt":p,"catalog_source":"offline_fallback"}),
-            g,
-        );
-    }
-    let mut s = db(m)?;
-    let (rows, source) = catalog(m);
+    let (rows, source) = catalog(m, g);
     let members = catalog_rungs(spec, &rows, &source);
     let judge = if changed(m, "judge") {
         default_judge.into()
     } else {
         frontier(&rows, &source)
     };
+    if g.dry_run {
+        let mut all = members;
+        all.push(judge);
+        return print(
+            &json!({"dry_run":true,"endpoint":"/chat/completions","models":all,"prompt":p,"catalog_source":source}),
+            g,
+        );
+    }
+    let mut s = db(m)?;
     let mut results = across(m, &p, &members, true, 0)?;
     apply_costs(&mut results, &rows);
     let judge_prompt = council_prompt(&p, &results);
@@ -709,14 +714,7 @@ pub fn compare(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let p = prompt(m, "compare")?;
     let mut cheap = arg(m, "cheap").unwrap_or("qwen/qwen3.5-9b").to_owned();
     let mut top = arg(m, "frontier").unwrap_or("z-ai/glm-5.3").to_owned();
-    if g.dry_run {
-        return print(
-            &json!({"dry_run":true,"endpoint":"/chat/completions","models":[cheap,top],"prompt":p,"catalog_source":if changed(m,"cheap")&&changed(m,"frontier"){"explicit"}else{"offline_fallback"}}),
-            g,
-        );
-    }
-    let mut s = db(m)?;
-    let (rows, source) = catalog(m);
+    let (rows, source) = catalog(m, g);
     if !changed(m, "cheap")
         && let Some(first) = active_rungs(&rows).first()
     {
@@ -725,6 +723,13 @@ pub fn compare(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     if !changed(m, "frontier") {
         top = frontier(&rows, &source);
     }
+    if g.dry_run {
+        return print(
+            &json!({"dry_run":true,"endpoint":"/chat/completions","models":[cheap,top],"prompt":p,"catalog_source":if changed(m,"cheap")&&changed(m,"frontier"){"explicit"}else{source.as_str()}}),
+            g,
+        );
+    }
+    let mut s = db(m)?;
     let a = chat_save(m, g, &mut s, "compare", &p, &cheap, 0, false, &rows, &source)?;
     let b = chat_save(m, g, &mut s, "compare", &p, &top, 0, false, &rows, &source)?;
     let history = s.search_runs(&p, 50).unwrap_or_default();
@@ -819,7 +824,7 @@ pub fn replay(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
             g,
         );
     }
-    let (rows, source) = catalog(m);
+    let (rows, source) = catalog(m, g);
     let new = chat_save(
         m,
         g,

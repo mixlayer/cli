@@ -385,10 +385,12 @@ fn ask(m: &ArgMatches, g: &Globals) -> Result<()> {
         ));
     }
     let mut db = store(m)?;
-    let catalog = if upstream.name == "mixlayer" && !g.dry_run {
-        models::load_live_catalog(m).ok()
-    } else {
+    let catalog = if upstream.name != "mixlayer" {
         None
+    } else if g.dry_run {
+        models::cached_live_catalog(m).ok()
+    } else {
+        models::load_live_catalog(m).ok()
     };
     let model = explicit_model.map(str::to_owned).unwrap_or_else(|| {
         catalog
@@ -409,7 +411,9 @@ fn ask(m: &ArgMatches, g: &Globals) -> Result<()> {
             preview["catalog_source"] = if explicit_model.is_some() {
                 "explicit"
             } else {
-                "offline_fallback"
+                catalog
+                    .as_ref()
+                    .map_or("offline_fallback", |(_, source)| source.as_str())
             }
             .into();
         }

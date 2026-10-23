@@ -532,6 +532,71 @@ fn model_refresh_and_live_catalog_cache_survive_separate_cli_runs() {
 }
 
 #[test]
+fn dry_runs_preview_the_cached_live_catalog_without_requests() {
+    let Ok(server) = FakeServer::start() else {
+        eprintln!("loopback bind denied; dry-run catalog test unverified");
+        return;
+    };
+    let home = tempfile::tempdir().unwrap();
+    let db = home.path().join("custom.db");
+    let db = db.to_str().unwrap();
+    let live = cli(
+        home.path(),
+        &server.url,
+        &["models", "list", "--live-prices", "--json", "--db", db],
+    );
+    assert!(live.status.success(), "{}", String::from_utf8_lossy(&live.stderr));
+    let source = value(&live)["source"].clone();
+    let before = server.seen().len();
+    for (args, models) in [
+        (&["ladder", "q"][..], json!(["cheap", "mid", "broken", "frontier"])),
+        (&["escalate", "q"][..], json!(["cheap", "mid", "broken", "frontier"])),
+        (
+            &["council", "q"][..],
+            json!(["cheap", "mid", "broken", "frontier", "frontier"]),
+        ),
+        (&["compare", "q"][..], json!(["cheap", "frontier"])),
+        (&["ask", "q"][..], json!(["frontier"])),
+    ] {
+        let out = cli(
+            home.path(),
+            &server.url,
+            &[args, &["--dry-run", "--json", "--db", db]].concat(),
+        );
+        assert!(
+            out.status.success(),
+            "{args:?}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let preview = value(&out);
+        assert_eq!(preview["models"], models, "{args:?}");
+        assert_eq!(preview["catalog_source"], source, "{args:?}");
+    }
+    let shield = cli(
+        home.path(),
+        &server.url,
+        &[
+            "shield",
+            "ask",
+            "q",
+            "--detector",
+            "regex",
+            "--dry-run",
+            "--json",
+            "--db",
+            db,
+        ],
+    );
+    assert!(shield.status.success(), "{}", String::from_utf8_lossy(&shield.stderr));
+    assert_eq!(value(&shield)["model"], "frontier");
+    assert_eq!(server.seen().len(), before, "--dry-run sent a request");
+    // With no cached catalog, previews still send nothing and say so.
+    let cold = cli(home.path(), &server.url, &["ladder", "q", "--dry-run", "--json"]);
+    assert_eq!(value(&cold)["catalog_source"], "offline_fallback");
+    assert_eq!(server.seen().len(), before, "--dry-run sent a request");
+}
+
+#[test]
 fn chat_machine_flags_work_with_valid_messages() {
     let Ok(server) = FakeServer::start() else {
         eprintln!("loopback bind denied; chat output HTTP test unverified");
