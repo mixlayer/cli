@@ -550,7 +550,15 @@ fn dry_runs_preview_the_cached_live_catalog_without_requests() {
     let before = server.seen().len();
     for (args, models) in [
         (&["ladder", "q"][..], json!(["cheap", "mid", "broken", "frontier"])),
+        (
+            &["ladder", "q", "--rungs", "ALL"][..],
+            json!(["cheap", "mid", "broken", "frontier"]),
+        ),
         (&["escalate", "q"][..], json!(["cheap", "mid", "broken", "frontier"])),
+        (
+            &["escalate", "q", "--rungs", ""][..],
+            json!(["cheap", "mid", "broken", "frontier"]),
+        ),
         (
             &["council", "q"][..],
             json!(["cheap", "mid", "broken", "frontier", "frontier"]),

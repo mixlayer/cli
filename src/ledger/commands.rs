@@ -78,8 +78,11 @@ fn parse_f64(m: &ArgMatches, name: &str, fallback: f64) -> anyhow::Result<f64> {
     }
     Ok(v)
 }
+fn all_rungs(spec: &str) -> bool {
+    spec.trim().is_empty() || spec.eq_ignore_ascii_case("all")
+}
 fn rungs(spec: &str) -> Vec<String> {
-    if spec.trim().is_empty() || spec.eq_ignore_ascii_case("all") {
+    if all_rungs(spec) {
         return DEFAULT_RUNGS.iter().map(|s| (*s).into()).collect();
     }
     spec.split(',')
@@ -122,7 +125,7 @@ fn active_rungs(rows: &[Value]) -> Vec<String> {
     ranked.into_iter().map(|p| p.0).collect()
 }
 fn catalog_rungs(spec: &str, rows: &[Value], source: &str) -> Vec<String> {
-    if spec.trim().is_empty() || spec.eq_ignore_ascii_case("all") {
+    if all_rungs(spec) {
         let active = active_rungs(rows);
         if !active.is_empty() {
             return active;
@@ -399,7 +402,7 @@ pub fn ladder(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let models = catalog_rungs(spec, &rows, &source);
     if g.dry_run {
         return print(
-            &json!({"dry_run":true,"endpoint":"/chat/completions","models":models,"prompt":p,"catalog_source":if spec=="all" {source.as_str()} else {"explicit"}}),
+            &json!({"dry_run":true,"endpoint":"/chat/completions","models":models,"prompt":p,"catalog_source":if all_rungs(spec) {source.as_str()} else {"explicit"}}),
             g,
         );
     }
@@ -461,7 +464,7 @@ pub fn escalate(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
     let (rows, source) = catalog(m, g);
     let configured = catalog_rungs(spec, &rows, &source);
     if g.dry_run {
-        let mut v = json!({"dry_run":true,"endpoint":"/chat/completions","models":configured,"prompt":p,"catalog_source":if spec=="all" {source.as_str()} else {"explicit"},"checker":checker});
+        let mut v = json!({"dry_run":true,"endpoint":"/chat/completions","models":configured,"prompt":p,"catalog_source":if all_rungs(spec) {source.as_str()} else {"explicit"},"checker":checker});
         if let Some(model) = checker_model {
             v["checker_url"] = super::decision::target_url(m)?.into();
             v["checker_body_template"] = super::decision::checker_request(&model, &p, "<rung response>");
