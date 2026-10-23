@@ -597,6 +597,25 @@ fn dry_runs_preview_the_cached_live_catalog_without_requests() {
     );
     assert!(shield.status.success(), "{}", String::from_utf8_lossy(&shield.stderr));
     assert_eq!(value(&shield)["model"], "frontier");
+    assert_eq!(value(&shield)["catalog_source"], source);
+    let explicit = cli(
+        home.path(),
+        &server.url,
+        &[
+            "council",
+            "q",
+            "--members",
+            "cheap,mid",
+            "--judge",
+            "mid",
+            "--dry-run",
+            "--json",
+            "--db",
+            db,
+        ],
+    );
+    assert_eq!(value(&explicit)["models"], json!(["cheap", "mid", "mid"]));
+    assert_eq!(value(&explicit)["catalog_source"], "explicit");
     assert_eq!(server.seen().len(), before, "--dry-run sent a request");
     // With no cached catalog, previews still send nothing and say so.
     let cold = cli(home.path(), &server.url, &["ladder", "q", "--dry-run", "--json"]);

@@ -596,7 +596,7 @@ pub fn council(m: &ArgMatches, g: &Globals) -> anyhow::Result<()> {
         let mut all = members;
         all.push(judge);
         return print(
-            &json!({"dry_run":true,"endpoint":"/chat/completions","models":all,"prompt":p,"catalog_source":source}),
+            &json!({"dry_run":true,"endpoint":"/chat/completions","models":all,"prompt":p,"catalog_source":if all_rungs(spec) || !changed(m, "judge") {source.as_str()} else {"explicit"}}),
             g,
         );
     }
