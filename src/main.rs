@@ -7,8 +7,8 @@ use clap::ArgMatches;
 
 use mixlayer::exit::Code;
 use mixlayer::{
-    Globals, agent_context, agent_detected, agent_setup, api, cli, exit, ledger, models_sync, output, paths, profiles,
-    shield_cmd, skill, spec_types, which,
+    Globals, agent_context, agent_detected, agent_setup, api, cli, exit, feedback, ledger, models_sync, output, paths,
+    profiles, shield_cmd, skill, spec_types, which,
 };
 
 fn flag(m: &ArgMatches, name: &str) -> Option<bool> {
@@ -77,10 +77,16 @@ fn main() -> ExitCode {
     match run(&matches) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            if e.downcast_ref::<exit::ChildExit>().is_none() {
+            let child = e.downcast_ref::<exit::ChildExit>().is_some();
+            if !child {
                 eprintln!("Error: {e:#}");
             }
-            ExitCode::from(exit::status_of(&e))
+            let status = exit::status_of(&e);
+            if !child {
+                let (path, leaf) = leaf_matches(&matches);
+                feedback::offer_after_error(&path, status, &globals(leaf));
+            }
+            ExitCode::from(status)
         }
     }
 }
@@ -267,6 +273,7 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
             Ok(())
         }
         ["which"] => run_which(leaf, &g),
+        ["feedback"] => feedback::run_command(leaf, &g),
         ["completion", shell] => {
             let shell = match *shell {
                 "bash" => clap_complete::Shell::Bash,

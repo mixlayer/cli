@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- New `mxl feedback [message]` builds a scrubbed, prefilled GitHub issue link for mixlayer/cli that you review and submit yourself (`--kind bug|confusing|slow|missing`, `--command`, `--open`, `--dry-run` shows exactly what would be filed). After a failed command in a terminal, mxl offers the same link once, with only the command name, exit code, version and OS/arch. It checks GitHub's public search for a matching fingerprint first and points you to the existing issue. `feedback.mode` (`ask` by default, `always`, `never`) or `MXL_FEEDBACK` controls it; it never prompts without a TTY or in agent mode, and the CLI holds no GitHub token. See [docs/feedback.md](docs/feedback.md).
 - `--dry-run` on `ladder`, `escalate`, `council`, `compare`, `ask` and `shield ask` now shows the models the real run will call. It picks them from the live catalog the CLI cached in the last hour (any real run or `mxl models list --live-prices` refreshes it) and still sends no requests. Before, a dry run without `--rungs` or `--model` always showed the built-in list, so a model in your catalog such as DeepSeek was missing from the preview and then called in the real run. `catalog_source` says which catalog the preview used; with no cache it is `offline_fallback`, as before.
 
 ## v0.3.1 (2026-10-19)
