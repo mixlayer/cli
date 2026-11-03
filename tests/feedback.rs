@@ -32,6 +32,7 @@ fn dry_run_prints_scrubbed_report_and_sends_nothing() {
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("nothing is sent"));
     assert!(s.contains("https://github.com/mixlayer/cli/issues/new?"));
+    assert!(s.contains("[mxl-feedback]") && s.contains("automated"));
     assert!(s.contains("kind:confusing") && s.contains("cmd:models-list"));
     for leak in ["sk-abcdefghijklmnop", "/Users/zed", "zed@example.com"] {
         assert!(!s.contains(leak), "{leak} leaked:\n{s}");

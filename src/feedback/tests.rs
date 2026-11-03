@@ -107,7 +107,15 @@ fn labels_cover_kind_command_exit_version_os() {
     r.exit_code = Some(4);
     r.error_kind = Some(exit_kind(4));
     let l = r.labels();
-    for want in ["feedback", "auto", "kind:error", "cmd:models-list", "exit:4", "v0.3.1"] {
+    for want in [
+        "feedback",
+        "automated",
+        "auto",
+        "kind:error",
+        "cmd:models-list",
+        "exit:4",
+        "v0.3.1",
+    ] {
         assert!(l.iter().any(|x| x == want), "missing {want} in {l:?}");
     }
     assert!(l.iter().any(|x| x.starts_with("os:")));
@@ -123,10 +131,12 @@ fn issue_url_is_prefilled_and_encoded() {
     assert_eq!(u.host_str(), Some("github.com"));
     assert_eq!(u.path(), "/mixlayer/cli/issues/new");
     let q: std::collections::HashMap<_, _> = u.query_pairs().into_owned().collect();
-    assert!(q["title"].starts_with("[missing] mxl compare: needs a & b = c"));
+    assert!(q["title"].starts_with("[mxl-feedback] [missing] mxl compare: needs a & b = c"));
     assert!(q["body"].contains(&r.fingerprint()));
     assert!(q["body"].contains("needs a & b = c"));
-    assert!(q["labels"].split(',').any(|l| l == "user-report"));
+    for want in ["feedback", "automated", "user-report"] {
+        assert!(q["labels"].split(',').any(|l| l == want), "{want}");
+    }
     let s = url::Url::parse(&search_url("mxl-abc")).unwrap();
     assert!(s.query_pairs().any(|(k, v)| k == "q" && v.contains("\"mxl-abc\"")));
 }

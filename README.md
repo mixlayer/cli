@@ -370,7 +370,7 @@ mxl models list --profile ci
 
 ## Feedback
 
-Hit a bug, a confusing message or a missing feature? `mxl feedback` builds a prefilled issue for [github.com/mixlayer/cli](https://github.com/mixlayer/cli/issues) that you review and submit yourself:
+Hit a bug, a confusing message or a missing feature? `mxl feedback` builds a prefilled issue for the public repo [github.com/mixlayer/cli](https://github.com/mixlayer/cli/issues) that you review and submit yourself. Every report is titled `[mxl-feedback] …` and labeled `feedback` and `automated`, plus `auto` (after a failure) or `user-report` (from `mxl feedback`):
 
 ```sh
 mxl feedback "compare should read the model list from a file" --kind missing --command compare

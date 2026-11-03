@@ -1,6 +1,6 @@
 # Feedback: a self-improving `mxl`
 
-`mxl` can turn friction into GitHub issues on [mixlayer/cli](https://github.com/mixlayer/cli/issues) so the CLI improves where people actually get stuck. You always see and submit the issue yourself.
+`mxl` can turn friction into GitHub issues on the public repo [mixlayer/cli](https://github.com/mixlayer/cli/issues) so the CLI improves where people actually get stuck. You always see and submit the issue yourself.
 
 ## Triggers
 
@@ -41,9 +41,9 @@ Every report has a fingerprint, `mxl-` plus 12 hex characters of SHA-256 over co
 
 Locally, `feedback.json` in the state directory (mode 0600) allows at most one offer per fingerprint per 24 hours and five per day. It stores only fingerprints and timestamps.
 
-## Labels
+## Title and labels
 
-`feedback`, `auto` or `user-report`, `kind:<kind>`, `cmd:<command>`, `exit:<code>`, `v<version>`, `os:<os>-<arch>`. GitHub only applies labels that exist in the repo, and only for people who can triage, so maintainers may need to create them.
+Every title starts with `[mxl-feedback]`. Labels: `feedback` and `automated` on every report, then the source (`auto` after a failure, `user-report` from `mxl feedback`), `kind:<kind>`, `cmd:<command>`, `exit:<code>`, `v<version>`, `os:<os>-<arch>`. GitHub only applies labels that exist in the repo, and only for people who can triage, so maintainers may need to create them.
 
 ## Future: a relay
 
