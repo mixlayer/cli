@@ -8,6 +8,7 @@ fn mxl(home: &std::path::Path) -> Command {
     let mut c = Command::new(env!("CARGO_BIN_EXE_mxl"));
     c.env("MIXLAYER_HOME", home)
         .env_remove("MXL_FEEDBACK")
+        .env_remove("MIXLAYER_CONFIG")
         .env_remove("AI_AGENT")
         .env("MIXLAYER_NO_AGENT_DETECT", "1");
     c
@@ -84,6 +85,37 @@ fn never_mode_in_a_config_file_passed_with_config_refuses() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(10), "{}", String::from_utf8_lossy(&out.stderr));
+}
+
+#[cfg(unix)]
+#[test]
+fn never_mode_in_the_legacy_config_file_refuses() {
+    let home = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(user.path().join(".config/mixlayer")).unwrap();
+    std::fs::write(
+        user.path().join(".config/mixlayer/config.toml"),
+        "[feedback]\nmode = \"never\"\n",
+    )
+    .unwrap();
+    let out = mxl(home.path())
+        .env("HOME", user.path())
+        .args(["feedback", "x"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(10), "{}", String::from_utf8_lossy(&out.stderr));
+}
+
+#[test]
+fn usage_error_without_tty_does_not_offer_or_change_exit_code() {
+    let home = tempfile::tempdir().unwrap();
+    let out = mxl(home.path())
+        .args(["models", "list", "--no-such-flag"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(!err.contains("issues/new") && !err.contains("[y/N]"), "{err}");
 }
 
 #[test]

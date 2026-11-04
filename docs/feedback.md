@@ -14,7 +14,7 @@ Exit 6 (partial result, or PII found by `shield`) and 9 (decision gate matched) 
 
 ## Consent
 
-`feedback.mode` in the config file in use (`--config`, then `MIXLAYER_CONFIG`, then the default `config.toml`), overridden by `MXL_FEEDBACK`:
+`feedback.mode` in the config file in use (`--config`, then `MIXLAYER_CONFIG`, then the default `config.toml`, or the legacy `~/.config/mixlayer/config.toml` if that is missing), overridden by `MXL_FEEDBACK`:
 
 ```toml
 [feedback]
@@ -31,7 +31,7 @@ There is never a prompt without a terminal on stdin and stderr, with `--no-input
 
 The report is built from an allowlist. Prompts, model output, error messages, API keys, organization or account IDs, environment values and file contents are never read into it. Only the command words are kept (`mxl ask "..."` becomes `ask`).
 
-Your own note is scrubbed before it is shown: API keys and tokens (`sk-…`, `Bearer …`, `NAME_KEY=…`, long hex or base64 runs) become `[secret]`; paths (including your home directory) become `[path]`; emails, IPs, hostnames and URLs become placeholders, except links to github.com/mixlayer/… and mixlayer.com pages, which are kept without their query string or fragment. Notes are capped at 500 characters.
+Your own note is scrubbed before it is shown: API keys and tokens (`sk-…`, `Bearer …`, `NAME_KEY=…`, long hex or base64 runs) become `[secret]`; paths (including your home directory) become `[path]`; emails, IPs, hostnames and URLs become placeholders, except links to github.com/mixlayer/cli and mixlayer.com pages, which are kept without their query string or fragment. Notes are capped at 500 characters.
 
 `mxl feedback --dry-run` prints exactly the title, labels and body that would be filed, and the link, without contacting anything.
 

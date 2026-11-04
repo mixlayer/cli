@@ -64,10 +64,21 @@ pub fn resolve_mode(env: Option<&str>, config: Option<&str>) -> Mode {
 }
 
 /// `feedback.mode` from the config file in use (`--config`, `MIXLAYER_CONFIG`
-/// or the default `config.toml`), e.g. `[feedback] mode = "never"`.
+/// or the default `config.toml`, falling back to the legacy
+/// `~/.config/mixlayer/config.toml` like `config::load`), e.g.
+/// `[feedback] mode = "never"`.
 pub fn config_mode(explicit: Option<&str>) -> Option<String> {
     let path = crate::api::config::selected_path(explicit).ok()?;
-    let text = std::fs::read_to_string(path).ok()?;
+    let overridden = explicit.is_some_and(|s| !s.trim().is_empty())
+        || std::env::var_os("MIXLAYER_CONFIG").is_some_and(|v| !v.is_empty());
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) if !overridden => {
+            let legacy = crate::paths::user_home()?.join(".config/mixlayer/config.toml");
+            std::fs::read_to_string(legacy).ok()?
+        }
+        Err(_) => return None,
+    };
     let v: toml::Value = toml::from_str(&text).ok()?;
     v.get("feedback")?.get("mode")?.as_str().map(str::to_string)
 }
@@ -156,7 +167,9 @@ pub fn scrub(text: &str, home: Option<&Path>) -> String {
         .replace_all(&s, |c: &regex::Captures| {
             let host = c[1].to_ascii_lowercase();
             let path = &c[2];
-            let ours = (host == "github.com" && path.to_ascii_lowercase().starts_with("/mixlayer/"))
+            // Only the public CLI repo: other github.com/mixlayer repos may be private.
+            let p = path.to_ascii_lowercase();
+            let ours = (host == "github.com" && (p == "/mixlayer/cli" || p.starts_with("/mixlayer/cli/")))
                 || host == "mixlayer.com"
                 || host.ends_with(".mixlayer.com");
             if ours {
@@ -174,14 +187,19 @@ pub fn scrub(text: &str, home: Option<&Path>) -> String {
     .replace_all(&s, "[ip]")
     .into_owned();
     // A path keeps going across a space while the next word is itself a path
-    // segment (`C:\Work\Jane Doe\x.txt`, `/tmp/Jane Doe/x.txt`), so no piece of
-    // a spaced directory name is left behind.
-    s = re(&WIN_PATH, r"(?i)\b[A-Z]:\\[^\s]*(?:[ \t]+[^\s]*\\[^\s]*)*")
-        .replace_all(&s, "[path]")
-        .into_owned();
+    // segment (`C:\Work\Jane Doe\x.txt`, `/tmp/Jane Doe/x.txt`), and takes one
+    // more word if it looks like a file name with an extension
+    // (`/tmp/Jane Doe.txt`), so no piece of a spaced name is left behind while
+    // ordinary trailing words stay.
+    s = re(
+        &WIN_PATH,
+        r"(?i)\b[A-Z]:\\[^\s]*(?:[ \t]+[^\s]*\\[^\s]*)*(?:[ \t]+[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,8}\b)?",
+    )
+    .replace_all(&s, "[path]")
+    .into_owned();
     s = re(
         &UNIX_PATH,
-        r"(?:~|\.{1,2})?/[A-Za-z0-9._@%+-]+(?:/[A-Za-z0-9._@%+-]*)*(?:[ \t]+[A-Za-z0-9._@%+-]+/[A-Za-z0-9._@%+-]*(?:/[A-Za-z0-9._@%+-]*)*)*",
+        r"(?:~|\.{1,2})?/[A-Za-z0-9._@%+-]+(?:/[A-Za-z0-9._@%+-]*)*(?:[ \t]+[A-Za-z0-9._@%+-]+/[A-Za-z0-9._@%+-]*(?:/[A-Za-z0-9._@%+-]*)*)*(?:[ \t]+[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,8}\b)?",
     )
         .replace_all(&s, |c: &regex::Captures| {
             // Keep the GitHub/Mixlayer URLs restored above intact.
@@ -564,8 +582,13 @@ impl Ledger {
 /// Create (mode 0600 on Unix, set in the same open) or overwrite `path`.
 fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
+    // Drop whatever sits at the temp path (a stale file or a planted symlink),
+    // then create it exclusively: `create_new` refuses an existing path,
+    // symlinks included, so the write can never land on another file. A race
+    // here only makes the open fail, and then no offer is shown.
+    let _ = std::fs::remove_file(path);
     let mut opts = std::fs::OpenOptions::new();
-    opts.write(true).create(true).truncate(true);
+    opts.write(true).create_new(true);
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;

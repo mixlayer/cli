@@ -64,6 +64,15 @@ fn main() -> ExitCode {
                 _ => Code::Usage,
             };
             let _ = e.print();
+            if code == Code::Usage {
+                // A best-effort parse that ignores the error recovers the
+                // command path and global flags (`--agent`, `--no-input`,
+                // `--config`) for the feedback offer.
+                if let Ok(partial) = cli::build().ignore_errors(true).try_get_matches_from(&argv) {
+                    let (path, leaf) = leaf_matches(&partial);
+                    feedback::offer_after_error(&path, code as u8, &globals(leaf), config_flag(leaf));
+                }
+            }
             return ExitCode::from(code as u8);
         }
     };

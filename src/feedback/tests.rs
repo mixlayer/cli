@@ -278,3 +278,35 @@ fn scrub_keeps_only_mixlayer_urls_and_drops_queries() {
     assert!(s.contains("https://github.com/mixlayer/cli/issues/1"), "{s}");
     assert!(s.contains("https://docs.mixlayer.com/cli"), "{s}");
 }
+
+#[test]
+fn scrub_drops_other_mixlayer_github_repos() {
+    // Other repos in the org may be private.
+    let s = scrub("see https://github.com/mixlayer/infra/blob/main/x.tf", None);
+    assert!(!s.contains("infra") && !s.contains("x.tf"), "{s}");
+}
+
+#[test]
+fn scrub_removes_spaced_final_file_names_but_keeps_prose() {
+    for raw in [
+        r"open C:\Work\Jane Doe.txt then failed",
+        "open /tmp/Jane Doe.txt then failed",
+    ] {
+        assert_eq!(scrub(raw, None), "open [path] then failed", "{raw}");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn ledger_save_does_not_follow_a_planted_symlink() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("feedback.json");
+    let victim = dir.path().join("victim.txt");
+    std::fs::write(&victim, "keep me").unwrap();
+    std::os::unix::fs::symlink(&victim, p.with_extension("json.tmp")).unwrap();
+    let mut l = Ledger::default();
+    l.mark_offered("a", 5, "2026-11-03");
+    l.save(&p).unwrap();
+    assert_eq!(std::fs::read_to_string(&victim).unwrap(), "keep me");
+    assert_eq!(Ledger::load(&p), l);
+}
