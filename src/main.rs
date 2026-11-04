@@ -7,8 +7,8 @@ use clap::ArgMatches;
 
 use mixlayer::exit::Code;
 use mixlayer::{
-    Globals, agent_context, agent_detected, agent_setup, api, cli, exit, ledger, models_sync, output, paths, profiles,
-    shield_cmd, skill, spec_types, which,
+    Globals, agent_context, agent_detected, agent_setup, api, cli, exit, feedback, ledger, models_sync, output, paths,
+    profiles, shield_cmd, skill, spec_types, which,
 };
 
 fn flag(m: &ArgMatches, name: &str) -> Option<bool> {
@@ -64,25 +64,48 @@ fn main() -> ExitCode {
                 _ => Code::Usage,
             };
             let _ = e.print();
+            if code == Code::Usage {
+                // A best-effort parse that ignores the error recovers the
+                // command path and global flags (`--agent`, `--no-input`,
+                // `--config`) for the feedback offer.
+                if let Ok(partial) = cli::build().ignore_errors(true).try_get_matches_from(&argv) {
+                    let (path, leaf) = leaf_matches(&partial);
+                    feedback::offer_after_error(&path, code as u8, &globals(leaf), config_flag(leaf));
+                }
+            }
             return ExitCode::from(code as u8);
         }
     };
+    let parsed = matches.clone();
     let matches = match apply_profile(&argv, matches) {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Error: {e:#}");
-            return ExitCode::from(exit::status_of(&e));
+            let status = exit::status_of(&e);
+            let (path, leaf) = leaf_matches(&parsed);
+            feedback::offer_after_error(&path, status, &globals(leaf), config_flag(leaf));
+            return ExitCode::from(status);
         }
     };
     match run(&matches) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            if e.downcast_ref::<exit::ChildExit>().is_none() {
+            let child = e.downcast_ref::<exit::ChildExit>().is_some();
+            if !child {
                 eprintln!("Error: {e:#}");
             }
-            ExitCode::from(exit::status_of(&e))
+            let status = exit::status_of(&e);
+            if !child {
+                let (path, leaf) = leaf_matches(&matches);
+                feedback::offer_after_error(&path, status, &globals(leaf), config_flag(leaf));
+            }
+            ExitCode::from(status)
         }
     }
+}
+
+fn config_flag(m: &ArgMatches) -> Option<&str> {
+    m.try_get_one::<String>("config").ok().flatten().map(String::as_str)
 }
 
 fn parse(argv: &[std::ffi::OsString]) -> Result<ArgMatches, clap::Error> {
@@ -267,6 +290,7 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
             Ok(())
         }
         ["which"] => run_which(leaf, &g),
+        ["feedback"] => feedback::run_command(leaf, &g),
         ["completion", shell] => {
             let shell = match *shell {
                 "bash" => clap_complete::Shell::Bash,

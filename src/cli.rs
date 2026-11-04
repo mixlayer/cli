@@ -143,6 +143,7 @@ pub fn build() -> Command {
         }
     }
     root = root
+        .subcommand(crate::feedback::command())
         .subcommand(crate::login::login_command())
         .subcommand(crate::login::logout_command())
         .subcommand(crate::login::billing_command());

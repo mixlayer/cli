@@ -45,8 +45,9 @@ fn has_creds(value: &Value) -> bool {
     .any(|key| !field(value, key).is_empty())
 }
 
-pub fn load(explicit: Option<&str>) -> anyhow::Result<Config> {
-    let path = explicit
+/// The config file in use: `--config`, then `MIXLAYER_CONFIG`, then the default.
+pub fn selected_path(explicit: Option<&str>) -> anyhow::Result<PathBuf> {
+    match explicit
         .filter(|s| !s.trim().is_empty())
         .map(PathBuf::from)
         .or_else(|| {
@@ -54,8 +55,14 @@ pub fn load(explicit: Option<&str>) -> anyhow::Result<Config> {
                 .ok()
                 .filter(|s| !s.is_empty())
                 .map(PathBuf::from)
-        })
-        .unwrap_or(paths::dir(Kind::Config)?.join("config.toml"));
+        }) {
+        Some(p) => Ok(p),
+        None => Ok(paths::dir(Kind::Config)?.join("config.toml")),
+    }
+}
+
+pub fn load(explicit: Option<&str>) -> anyhow::Result<Config> {
+    let path = selected_path(explicit)?;
     let credentials_path = paths::dir(Kind::Data)?.join("credentials.toml");
     let legacy = paths::user_home().map(|h| h.join(".config/mixlayer/config.toml"));
     let mut legacy_path = None;

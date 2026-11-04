@@ -357,6 +357,7 @@ Your API key never goes into an agent's config:
 | `MIXLAYER_HOME` | Put config, data, state and cache under one directory (same as `--home`) |
 | `MIXLAYER_CONFIG` | Path to the config file |
 | `MIXLAYER_NO_AGENT_DETECT` | Set to `1` to stop automatic `--agent` mode |
+| `MXL_FEEDBACK` | `ask` (default), `always` or `never`: whether a failed command offers a prefilled GitHub issue. See [Feedback](#feedback) |
 
 By default the CLI follows your platform's standard locations (`~/.config/mixlayer`, `~/.local/share/mixlayer` and so on, or the XDG variables if set). `mxl doctor` prints the resolved paths.
 
@@ -366,6 +367,24 @@ You can save global flags under a name and reuse them, which helps scheduled job
 mxl profile save ci --agent --timeout 60s
 mxl models list --profile ci
 ```
+
+## Feedback
+
+Hit a bug, a confusing message or a missing feature? `mxl feedback` builds a prefilled issue for the public repo [github.com/mixlayer/cli](https://github.com/mixlayer/cli/issues) that you review and submit yourself. Every report is titled `[mxl-feedback] …` and labeled `feedback` and `automated`, plus `auto` (after a failure) or `user-report` (from `mxl feedback`):
+
+```sh
+mxl feedback "compare should read the model list from a file" --kind missing --command compare
+mxl feedback --dry-run "ask was slow on first run" --kind slow   # show exactly what would be filed
+mxl feedback --open "..."                                         # open the link in your browser
+```
+
+When a command fails in a terminal, mxl asks once whether to open the same kind of link, with only the command name, exit code, version and OS. Nothing is sent for you: the CLI holds no GitHub token, and submitted issues are public. Before showing a link, it checks GitHub's public search for an issue with the same fingerprint (command, error kind and version) and points you there to add a 👍 instead.
+
+- **Never captured:** prompts, model output, error messages, API keys, environment values or file contents. Your note is scrubbed of paths, emails, hostnames, IPs, URLs (other than github.com/mixlayer/cli and mixlayer.com links, which lose their query string) and key-like strings, and capped at 500 characters.
+- **Consent:** `feedback.mode` in `config.toml` (`[feedback]` then `mode = "never"`) or `MXL_FEEDBACK` (which wins): `ask` (default) prompts after a failure, `always` prints the link without asking, `never` turns it all off. It never prompts without a terminal, with `--no-input`, or in agent mode. Exits 6 and 9 (expected outcomes) never offer.
+- **Rate limits:** at most one offer per fingerprint per 24 hours and five per day, tracked in `feedback.json` in the state directory (mode 0600).
+
+See [docs/feedback.md](docs/feedback.md).
 
 ## Exit codes
 
