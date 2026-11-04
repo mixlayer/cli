@@ -380,7 +380,7 @@ mxl feedback --open "..."                                         # open the lin
 
 When a command fails in a terminal, mxl asks once whether to open the same kind of link, with only the command name, exit code, version and OS. Nothing is sent for you: the CLI holds no GitHub token, and submitted issues are public. Before showing a link, it checks GitHub's public search for an issue with the same fingerprint (command, error kind and version) and points you there to add a 👍 instead.
 
-- **Never captured:** prompts, model output, error messages, API keys, environment values or file contents. Your note is scrubbed of paths, emails, hostnames, IPs, URLs (other than github.com and mixlayer.com) and key-like strings, and capped at 500 characters.
+- **Never captured:** prompts, model output, error messages, API keys, environment values or file contents. Your note is scrubbed of paths, emails, hostnames, IPs, URLs (other than github.com/mixlayer and mixlayer.com links, which lose their query string) and key-like strings, and capped at 500 characters.
 - **Consent:** `feedback.mode` in `config.toml` (`[feedback]` then `mode = "never"`) or `MXL_FEEDBACK` (which wins): `ask` (default) prompts after a failure, `always` prints the link without asking, `never` turns it all off. It never prompts without a terminal, with `--no-input`, or in agent mode. Exits 6 and 9 (expected outcomes) never offer.
 - **Rate limits:** at most one offer per fingerprint per 24 hours and five per day, tracked in `feedback.json` in the state directory (mode 0600).
 

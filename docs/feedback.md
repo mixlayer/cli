@@ -31,15 +31,15 @@ There is never a prompt without a terminal on stdin and stderr, with `--no-input
 
 The report is built from an allowlist. Prompts, model output, error messages, API keys, organization or account IDs, environment values and file contents are never read into it. Only the command words are kept (`mxl ask "..."` becomes `ask`).
 
-Your own note is scrubbed before it is shown: API keys and tokens (`sk-…`, `Bearer …`, `NAME_KEY=…`, long hex or base64 runs) become `[secret]`; paths (including your home directory) become `[path]`; emails, IPs, hostnames and URLs other than github.com and mixlayer.com become placeholders. Notes are capped at 500 characters.
+Your own note is scrubbed before it is shown: API keys and tokens (`sk-…`, `Bearer …`, `NAME_KEY=…`, long hex or base64 runs) become `[secret]`; paths (including your home directory) become `[path]`; emails, IPs, hostnames and URLs become placeholders, except links to github.com/mixlayer/… and mixlayer.com pages, which are kept without their query string or fragment. Notes are capped at 500 characters.
 
 `mxl feedback --dry-run` prints exactly the title, labels and body that would be filed, and the link, without contacting anything.
 
 ## Dedupe and rate limits
 
-Every report has a fingerprint, `mxl-` plus 12 hex characters of SHA-256 over command, error kind and version. It's in the issue body, and before showing a link `mxl` searches GitHub's public, unauthenticated issue search for it. If an issue matches, you get its link to add a 👍 or comment instead of a duplicate (opened in your browser when you answered yes or passed `--open`). If the search fails (offline, rate limited), you get the new-issue link.
+Every report has a fingerprint, `mxl-` plus 12 hex characters of SHA-256 over command, error kind and version (for `mxl feedback` reports, over command, kind, your scrubbed note and version, so only an identical report matches). It's in the issue body, and before showing a link `mxl` searches GitHub's public, unauthenticated issue search for it. If an issue matches, you get its link to add a 👍 or comment instead of a duplicate (opened in your browser when you answered yes or passed `--open`). If the search fails (offline, rate limited), you get the new-issue link.
 
-Locally, `feedback.json` in the state directory (mode 0600) allows at most one offer per fingerprint per 24 hours and five per day. The one exception is the first repeat of a failure within 10 minutes, which gets its own `friction` offer (still inside the five per day). It stores only fingerprints and timestamps, and a lock file keeps two failing commands from both offering at once.
+Locally, `feedback.json` in the state directory (mode 0600) allows at most one offer per fingerprint per 24 hours and five per day. The one exception is the first repeat of a failure within 10 minutes, which gets its own `friction` offer (still inside the five per day). It stores fingerprints, timestamps, the current local day (`YYYY-MM-DD`) and the number of offers shown that day. A lock file keeps two failing commands from both offering at once, and if the file can't be written, no offer is shown.
 
 Only real `mxl` command names are kept from `--command`; any other words are dropped.
 

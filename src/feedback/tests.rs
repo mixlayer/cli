@@ -235,9 +235,46 @@ fn ledger_round_trips() {
     l.record_failure("a", 5);
     {
         let _lock = Ledger::lock(&p).expect("lock");
-        l.save(&p);
+        l.save(&p).unwrap();
     }
     assert_eq!(Ledger::load(&p), l);
     assert!(!p.with_extension("json.tmp").exists(), "temp file renamed into place");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std::fs::metadata(&p).unwrap().permissions().mode() & 0o777, 0o600);
+    }
     assert_eq!(Ledger::load(&dir.path().join("missing.json")), Ledger::default());
+}
+
+#[test]
+fn ledger_save_reports_failure() {
+    let dir = tempfile::tempdir().unwrap();
+    // The parent "directory" is a file, so nothing can be written.
+    let blocker = dir.path().join("not-a-dir");
+    std::fs::write(&blocker, "x").unwrap();
+    assert!(Ledger::default().save(&blocker.join("feedback.json")).is_err());
+}
+
+#[test]
+fn manual_reports_with_different_notes_do_not_share_a_fingerprint() {
+    let mut a = Report::new(Kind::Bug, "ask".into(), "0.3.1");
+    a.note = Some("hangs on a slow network".into());
+    let mut b = a.clone();
+    b.note = Some("wrong model picked".into());
+    assert_ne!(a.fingerprint(), b.fingerprint());
+    assert_eq!(a.fingerprint(), a.clone().fingerprint());
+}
+
+#[test]
+fn scrub_keeps_only_mixlayer_urls_and_drops_queries() {
+    let s = scrub(
+        "see https://github.com/acme/private-repo/issues/3 and https://github.com/mixlayer/cli/issues/1?token=abc#x and https://docs.mixlayer.com/cli?auth=shh",
+        None,
+    );
+    for leak in ["acme", "private-repo", "token=abc", "auth=shh", "#x"] {
+        assert!(!s.contains(leak), "{leak:?} leaked in {s:?}");
+    }
+    assert!(s.contains("https://github.com/mixlayer/cli/issues/1"), "{s}");
+    assert!(s.contains("https://docs.mixlayer.com/cli"), "{s}");
 }

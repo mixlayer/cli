@@ -148,15 +148,19 @@ pub fn scrub(text: &str, home: Option<&Path>) -> String {
         .replace_all(&s, "[email]")
         .into_owned();
     // Allowed URLs are parked behind placeholders so later passes can't touch them.
+    // Only Mixlayer's own repos on GitHub and mixlayer.com pages are kept, and
+    // never their query string or fragment (a private repo path or a
+    // `?token=` value must not reach a public issue).
     let mut kept: Vec<String> = Vec::new();
-    s = re(&URL, r"(?i)\bhttps?://([^/\s]+)[^\s]*")
+    s = re(&URL, r"(?i)\bhttps?://([^/\s?#]+)([^\s?#]*)[^\s]*")
         .replace_all(&s, |c: &regex::Captures| {
             let host = c[1].to_ascii_lowercase();
-            let ours = ["github.com", "mixlayer.com"]
-                .iter()
-                .any(|d| host == *d || host.ends_with(&format!(".{d}")));
+            let path = &c[2];
+            let ours = (host == "github.com" && path.to_ascii_lowercase().starts_with("/mixlayer/"))
+                || host == "mixlayer.com"
+                || host.ends_with(".mixlayer.com");
             if ours {
-                kept.push(c[0].to_string());
+                kept.push(format!("https://{host}{path}"));
                 format!("\u{1}{}\u{1}", kept.len() - 1)
             } else {
                 "[url]".to_string()
@@ -305,10 +309,19 @@ impl Report {
     }
 
     /// Stable across runs: command + error kind (or report kind) + version.
-    /// The note is not included, so two people hitting the same failure match.
+    /// Automatic reports leave the note out, so two people hitting the same
+    /// failure match. `mxl feedback` reports (no error kind) include it, so two
+    /// different notes about the same command never count as duplicates.
     pub fn fingerprint(&self) -> String {
-        let kind = self.error_kind.as_deref().unwrap_or(self.kind.as_str());
-        fingerprint(&self.command, kind, &self.version)
+        match (&self.error_kind, &self.note) {
+            (Some(ek), _) => fingerprint(&self.command, ek, &self.version),
+            (None, Some(n)) => fingerprint(
+                &self.command,
+                &format!("{}\u{1f}{n}", self.kind.as_str()),
+                &self.version,
+            ),
+            (None, None) => fingerprint(&self.command, self.kind.as_str(), &self.version),
+        }
     }
 
     pub fn title(&self) -> String {
@@ -467,7 +480,9 @@ impl Ledger {
         }
     }
 
-    pub fn save(&self, path: &Path) {
+    /// Write the ledger. An error means the offer could not be recorded, so the
+    /// caller must not show it (otherwise the rate limits stop applying).
+    pub fn save(&self, path: &Path) -> std::io::Result<()> {
         let v = serde_json::json!({
             "offered": self.offered,
             "failures": self.failures,
@@ -475,23 +490,16 @@ impl Ledger {
             "day_count": self.day_count,
         });
         if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
+            std::fs::create_dir_all(dir)?;
         }
-        // Write a sibling temp file and rename it into place, so a reader never
-        // sees a half-written ledger.
+        // Write a sibling temp file (created 0600) and rename it into place, so
+        // a reader never sees a half-written ledger.
         let tmp = path.with_extension("json.tmp");
-        if std::fs::write(&tmp, v.to_string()).is_err() {
-            let _ = std::fs::remove_file(&tmp);
-            return;
-        }
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600));
-        }
-        if std::fs::rename(&tmp, path).is_err() {
+        let written = write_private(&tmp, v.to_string().as_bytes()).and_then(|()| std::fs::rename(&tmp, path));
+        if written.is_err() {
             let _ = std::fs::remove_file(&tmp);
         }
+        written
     }
 
     /// Hold an exclusive lock on a sibling `.lock` file from load through
@@ -551,6 +559,27 @@ impl Ledger {
         self.day_count += 1;
         self.offered.retain(|_, t| now - *t < PER_FINGERPRINT_SECS * 7);
     }
+}
+
+/// Create (mode 0600 on Unix, set in the same open) or overwrite `path`.
+fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let mut f = opts.open(path)?;
+    f.write_all(bytes)?;
+    #[cfg(unix)]
+    {
+        // `mode` applies only on create; tighten a leftover file too.
+        use std::os::unix::fs::PermissionsExt;
+        let _ = f.set_permissions(std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
 }
 
 pub fn ledger_path() -> Option<PathBuf> {
@@ -625,11 +654,15 @@ pub fn offer_after_error(path: &[&str], code: u8, g: &crate::Globals, config: Op
         r.kind = Kind::Friction;
     }
     if !ledger.should_offer(&fp, r.repeats, now, &today) {
-        ledger.save(&lpath);
+        let _ = ledger.save(&lpath);
         return;
     }
     ledger.mark_offered(&fp, now, &today);
-    ledger.save(&lpath);
+    // If the offer can't be recorded, don't show it: the limits would stop
+    // applying and every failing command would offer again.
+    if ledger.save(&lpath).is_err() {
+        return;
+    }
     drop(lock);
     let show = match offer {
         Offer::Prompt => ask_yes(&format!(
