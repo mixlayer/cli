@@ -68,6 +68,45 @@ fn never_mode_refuses() {
 }
 
 #[test]
+fn never_mode_in_a_config_file_passed_with_config_refuses() {
+    let home = tempfile::tempdir().unwrap();
+    let cfg = home.path().join("elsewhere.toml");
+    std::fs::write(&cfg, "[feedback]\nmode = \"never\"\n").unwrap();
+    let out = mxl(home.path())
+        .env_remove("MIXLAYER_CONFIG")
+        .args(["feedback", "x", "--config", cfg.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(10), "{}", String::from_utf8_lossy(&out.stderr));
+    let out = mxl(home.path())
+        .env("MIXLAYER_CONFIG", &cfg)
+        .args(["feedback", "x"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(10), "{}", String::from_utf8_lossy(&out.stderr));
+}
+
+#[test]
+fn dry_run_drops_free_text_from_command() {
+    let home = tempfile::tempdir().unwrap();
+    let out = mxl(home.path())
+        .args([
+            "feedback",
+            "--json",
+            "--dry-run",
+            "--command",
+            "ask private customer",
+            "x",
+        ])
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let all = v.to_string();
+    assert!(!all.contains("private") && !all.contains("customer"), "{all}");
+    assert!(v["title"].as_str().unwrap().contains("mxl ask"));
+}
+
+#[test]
 fn failure_without_tty_does_not_offer_or_change_exit_code() {
     let home = tempfile::tempdir().unwrap();
     let out = mxl(home.path())

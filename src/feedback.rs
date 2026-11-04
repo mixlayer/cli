@@ -63,17 +63,18 @@ pub fn resolve_mode(env: Option<&str>, config: Option<&str>) -> Mode {
         .unwrap_or(Mode::Ask)
 }
 
-/// `feedback.mode` from config.toml (`[feedback] mode = "never"`).
-pub fn config_mode() -> Option<String> {
-    let path = crate::paths::dir(crate::paths::Kind::Config).ok()?.join("config.toml");
+/// `feedback.mode` from the config file in use (`--config`, `MIXLAYER_CONFIG`
+/// or the default `config.toml`), e.g. `[feedback] mode = "never"`.
+pub fn config_mode(explicit: Option<&str>) -> Option<String> {
+    let path = crate::api::config::selected_path(explicit).ok()?;
     let text = std::fs::read_to_string(path).ok()?;
     let v: toml::Value = toml::from_str(&text).ok()?;
     v.get("feedback")?.get("mode")?.as_str().map(str::to_string)
 }
 
-pub fn effective_mode() -> Mode {
+pub fn effective_mode(config: Option<&str>) -> Mode {
     let env = std::env::var(ENV_MODE).ok();
-    resolve_mode(env.as_deref(), config_mode().as_deref())
+    resolve_mode(env.as_deref(), config_mode(config).as_deref())
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -168,10 +169,16 @@ pub fn scrub(text: &str, home: Option<&Path>) -> String {
     )
     .replace_all(&s, "[ip]")
     .into_owned();
-    s = re(&WIN_PATH, r"(?i)\b[A-Z]:\\[^\s]*")
+    // A path keeps going across a space while the next word is itself a path
+    // segment (`C:\Work\Jane Doe\x.txt`, `/tmp/Jane Doe/x.txt`), so no piece of
+    // a spaced directory name is left behind.
+    s = re(&WIN_PATH, r"(?i)\b[A-Z]:\\[^\s]*(?:[ \t]+[^\s]*\\[^\s]*)*")
         .replace_all(&s, "[path]")
         .into_owned();
-    s = re(&UNIX_PATH, r"(?:~|\.{1,2})?/[A-Za-z0-9._@%+-]+(?:/[A-Za-z0-9._@%+-]*)*")
+    s = re(
+        &UNIX_PATH,
+        r"(?:~|\.{1,2})?/[A-Za-z0-9._@%+-]+(?:/[A-Za-z0-9._@%+-]*)*(?:[ \t]+[A-Za-z0-9._@%+-]+/[A-Za-z0-9._@%+-]*(?:/[A-Za-z0-9._@%+-]*)*)*",
+    )
         .replace_all(&s, |c: &regex::Captures| {
             // Keep the GitHub/Mixlayer URLs restored above intact.
             if c[0].starts_with("//") {
@@ -203,22 +210,31 @@ pub fn scrub(text: &str, home: Option<&Path>) -> String {
     }
     let s = s.trim();
     if s.chars().count() > MAX_NOTE {
-        let cut: String = s.chars().take(MAX_NOTE).collect();
+        // The ellipsis counts toward the cap.
+        let cut: String = s.chars().take(MAX_NOTE - 1).collect();
         format!("{cut}…")
     } else {
         s.to_string()
     }
 }
 
-/// Command names only: drop anything that is not a lowercase word, so a
-/// positional argument can never leak into a report.
+/// Command names only: keep leading words that are real `mxl` subcommands, so
+/// neither a positional argument nor free text passed to `--command` can leak
+/// into a report.
 pub fn clean_command(path: &[&str]) -> String {
-    path.iter()
-        .take_while(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_lowercase() || c == '-'))
-        .take(3)
-        .copied()
-        .collect::<Vec<_>>()
-        .join(" ")
+    let root = crate::cli::build();
+    let mut cmd = &root;
+    let mut out: Vec<String> = Vec::new();
+    for p in path.iter().take(3) {
+        match cmd.find_subcommand(p) {
+            Some(sub) => {
+                out.push(sub.get_name().to_string());
+                cmd = sub;
+            }
+            None => break,
+        }
+    }
+    out.join(" ")
 }
 
 // ---------- report ----------
@@ -461,12 +477,38 @@ impl Ledger {
         if let Some(dir) = path.parent() {
             let _ = std::fs::create_dir_all(dir);
         }
-        let _ = std::fs::write(path, v.to_string());
+        // Write a sibling temp file and rename it into place, so a reader never
+        // sees a half-written ledger.
+        let tmp = path.with_extension("json.tmp");
+        if std::fs::write(&tmp, v.to_string()).is_err() {
+            let _ = std::fs::remove_file(&tmp);
+            return;
+        }
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+            let _ = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600));
         }
+        if std::fs::rename(&tmp, path).is_err() {
+            let _ = std::fs::remove_file(&tmp);
+        }
+    }
+
+    /// Hold an exclusive lock on a sibling `.lock` file from load through
+    /// save, so two failing commands can't both pass the rate-limit check.
+    /// `None` (lock unavailable) means skip the offer rather than risk a double one.
+    pub fn lock(path: &Path) -> Option<std::fs::File> {
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let f = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(path.with_extension("lock"))
+            .ok()?;
+        f.lock().ok()?;
+        Some(f)
     }
 
     /// Record a failure and return how many happened inside the retry window.
@@ -481,8 +523,23 @@ impl Ledger {
 
     pub fn allowed(&self, fp: &str, now: i64, today: &str) -> bool {
         let fresh = self.offered.get(fp).is_none_or(|t| now - *t >= PER_FINGERPRINT_SECS);
-        let budget = self.day != today || self.day_count < PER_DAY;
-        fresh && budget
+        fresh && self.budget_left(today)
+    }
+
+    pub fn budget_left(&self, today: &str) -> bool {
+        self.day != today || self.day_count < PER_DAY
+    }
+
+    /// The first repeat inside the retry window (`repeats == 2`) is a friction
+    /// report and gets its own offer even though the first failure used up the
+    /// fingerprint's 24-hour slot. Later repeats and everything else follow
+    /// `allowed`. The daily budget always applies.
+    pub fn should_offer(&self, fp: &str, repeats: u32, now: i64, today: &str) -> bool {
+        if repeats == 2 {
+            self.budget_left(today)
+        } else {
+            self.allowed(fp, now, today)
+        }
     }
 
     pub fn mark_offered(&mut self, fp: &str, now: i64, today: &str) {
@@ -520,19 +577,9 @@ fn ask_yes(question: &str) -> bool {
 }
 
 pub fn open_in_browser(url: &str) -> bool {
-    let (prog, args): (&str, Vec<&str>) = if cfg!(target_os = "macos") {
-        ("open", vec![url])
-    } else if cfg!(windows) {
-        ("cmd", vec!["/C", "start", "", url])
-    } else {
-        ("xdg-open", vec![url])
-    };
-    std::process::Command::new(prog)
-        .args(args)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|s| s.success())
+    // Same launcher as `mxl login`: on Windows it goes through rundll32, not
+    // `cmd /C start`, so `&` in the issue URL is never read as a command separator.
+    crate::login::open_browser(url)
 }
 
 pub fn exit_kind(code: u8) -> String {
@@ -545,7 +592,8 @@ pub fn exit_kind(code: u8) -> String {
 
 /// Called from `main` after a command fails. Prints only to stderr and never
 /// changes the exit code. Does nothing unless a person is at a terminal.
-pub fn offer_after_error(path: &[&str], code: u8, g: &crate::Globals) {
+/// `config` is the `--config` value, if any.
+pub fn offer_after_error(path: &[&str], code: u8, g: &crate::Globals, config: Option<&str>) {
     if path.first() == Some(&"feedback") || code == 0 {
         return;
     }
@@ -559,11 +607,12 @@ pub fn offer_after_error(path: &[&str], code: u8, g: &crate::Globals) {
         agent: g.agent || crate::agent_detected(),
         no_input: g.no_input,
     };
-    let offer = decide_after_error(effective_mode(), ctx);
+    let offer = decide_after_error(effective_mode(config), ctx);
     if offer == Offer::Skip {
         return;
     }
     let Some(lpath) = ledger_path() else { return };
+    let Some(lock) = Ledger::lock(&lpath) else { return };
     let mut ledger = Ledger::load(&lpath);
     let (now, today) = now_and_today();
     let mut r = Report::new(Kind::Error, clean_command(path), crate::cli::VERSION);
@@ -575,12 +624,13 @@ pub fn offer_after_error(path: &[&str], code: u8, g: &crate::Globals) {
     if r.repeats >= 2 {
         r.kind = Kind::Friction;
     }
-    if !ledger.allowed(&fp, now, &today) {
+    if !ledger.should_offer(&fp, r.repeats, now, &today) {
         ledger.save(&lpath);
         return;
     }
     ledger.mark_offered(&fp, now, &today);
     ledger.save(&lpath);
+    drop(lock);
     let show = match offer {
         Offer::Prompt => ask_yes(&format!(
             "\nmxl {} failed. Open a prefilled GitHub issue? Nothing is sent unless you submit it.",
@@ -599,6 +649,9 @@ fn present(r: &Report, try_open: bool) {
     let fp = r.fingerprint();
     if let Some(existing) = find_existing(&fp) {
         eprintln!("Someone already reported this: {existing}\nA 👍 or comment there helps it get fixed.");
+        if try_open {
+            let _ = open_in_browser(&existing);
+        }
         return;
     }
     let url = issue_url(r);
@@ -610,7 +663,8 @@ fn present(r: &Report, try_open: bool) {
 
 /// `mxl feedback [message...] [--kind K] [--command C] [--open] [--dry-run]`
 pub fn run_command(m: &clap::ArgMatches, g: &crate::Globals) -> anyhow::Result<()> {
-    if effective_mode() == Mode::Never {
+    let config = m.try_get_one::<String>("config").ok().flatten().map(String::as_str);
+    if effective_mode(config) == Mode::Never {
         return Err(crate::exit::err(
             crate::exit::Code::Config,
             format!("feedback is turned off ({ENV_MODE}=never or feedback.mode = \"never\")"),
@@ -660,6 +714,9 @@ pub fn run_command(m: &clap::ArgMatches, g: &crate::Globals) -> anyhow::Result<(
     }
     if let Some(existing) = find_existing(&fp) {
         println!("A matching issue already exists: {existing}\nAdd a 👍 or a comment there.");
+        if m.get_flag("open") {
+            let _ = open_in_browser(&existing);
+        }
         return Ok(());
     }
     println!("{url}");

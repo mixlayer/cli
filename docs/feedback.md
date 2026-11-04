@@ -14,7 +14,7 @@ Exit 6 (partial result, or PII found by `shield`) and 9 (decision gate matched) 
 
 ## Consent
 
-`feedback.mode` in `config.toml`, overridden by `MXL_FEEDBACK`:
+`feedback.mode` in the config file in use (`--config`, then `MIXLAYER_CONFIG`, then the default `config.toml`), overridden by `MXL_FEEDBACK`:
 
 ```toml
 [feedback]
@@ -37,9 +37,11 @@ Your own note is scrubbed before it is shown: API keys and tokens (`sk-…`, `Be
 
 ## Dedupe and rate limits
 
-Every report has a fingerprint, `mxl-` plus 12 hex characters of SHA-256 over command, error kind and version. It's in the issue body, and before showing a link `mxl` searches GitHub's public, unauthenticated issue search for it. If an issue matches, you get its link to add a 👍 or comment instead of a duplicate. If the search fails (offline, rate limited), you get the new-issue link.
+Every report has a fingerprint, `mxl-` plus 12 hex characters of SHA-256 over command, error kind and version. It's in the issue body, and before showing a link `mxl` searches GitHub's public, unauthenticated issue search for it. If an issue matches, you get its link to add a 👍 or comment instead of a duplicate (opened in your browser when you answered yes or passed `--open`). If the search fails (offline, rate limited), you get the new-issue link.
 
-Locally, `feedback.json` in the state directory (mode 0600) allows at most one offer per fingerprint per 24 hours and five per day. It stores only fingerprints and timestamps.
+Locally, `feedback.json` in the state directory (mode 0600) allows at most one offer per fingerprint per 24 hours and five per day. The one exception is the first repeat of a failure within 10 minutes, which gets its own `friction` offer (still inside the five per day). It stores only fingerprints and timestamps, and a lock file keeps two failing commands from both offering at once.
+
+Only real `mxl` command names are kept from `--command`; any other words are dropped.
 
 ## Title and labels
 

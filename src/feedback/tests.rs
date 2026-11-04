@@ -70,7 +70,23 @@ fn scrub_removes_secrets_paths_emails_hosts() {
 fn scrub_caps_length_and_keeps_plain_text() {
     assert_eq!(scrub("  compare is confusing  ", None), "compare is confusing");
     let long = "word ".repeat(300);
-    assert!(scrub(&long, None).chars().count() <= MAX_NOTE + 1);
+    let s = scrub(&long, None);
+    assert_eq!(s.chars().count(), MAX_NOTE, "ellipsis counts toward the cap");
+    assert!(s.ends_with('…'));
+}
+
+#[test]
+fn scrub_removes_whole_paths_with_spaces() {
+    for (raw, gone) in [
+        (r"see C:\Work\Jane Doe\secret.txt now", ["Jane", "Doe", "secret"]),
+        ("see /tmp/Jane Doe/secret.txt now", ["Jane", "Doe", "secret"]),
+    ] {
+        let s = scrub(raw, None);
+        for leak in gone {
+            assert!(!s.contains(leak), "{leak:?} leaked in {s:?}");
+        }
+        assert_eq!(s, "see [path] now");
+    }
 }
 
 #[test]
@@ -78,6 +94,22 @@ fn clean_command_drops_positionals() {
     assert_eq!(clean_command(&["models", "list"]), "models list");
     assert_eq!(clean_command(&["ask", "What is my SSN 123?"]), "ask");
     assert_eq!(clean_command(&["shield", "scan", "/tmp/x"]), "shield scan");
+}
+
+#[test]
+fn clean_command_keeps_only_real_command_names() {
+    // `--command 'ask private customer'` must not carry free text into a report.
+    assert_eq!(clean_command(&["ask", "private", "customer"]), "ask");
+    assert_eq!(clean_command(&["acme", "secret"]), "");
+    assert_eq!(clean_command(&["shield", "dict", "add"]), "shield dict add");
+}
+
+#[test]
+fn config_mode_reads_the_selected_config_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("custom.toml");
+    std::fs::write(&p, "[feedback]\nmode = \"never\"\n").unwrap();
+    assert_eq!(config_mode(p.to_str()).as_deref(), Some("never"));
 }
 
 #[test]
@@ -173,13 +205,39 @@ fn retries_are_counted_inside_the_window() {
 }
 
 #[test]
+fn first_repeat_is_offered_despite_the_fingerprint_cooldown() {
+    let mut l = Ledger::default();
+    let t = 1_000_000;
+    let day = "2026-11-03";
+    assert_eq!(l.record_failure("a", t), 1);
+    assert!(l.should_offer("a", 1, t, day));
+    l.mark_offered("a", t, day);
+    // Same failure again inside the retry window: friction gets its own offer.
+    assert_eq!(l.record_failure("a", t + 60), 2);
+    assert!(l.should_offer("a", 2, t + 60, day));
+    l.mark_offered("a", t + 60, day);
+    // Further repeats are back under the 24-hour rule.
+    assert_eq!(l.record_failure("a", t + 120), 3);
+    assert!(!l.should_offer("a", 3, t + 120, day));
+    // The daily budget still caps friction offers.
+    for i in 0..PER_DAY {
+        l.mark_offered(&format!("x{i}"), t, day);
+    }
+    assert!(!l.should_offer("b", 2, t, day));
+}
+
+#[test]
 fn ledger_round_trips() {
     let dir = tempfile::tempdir().unwrap();
     let p = dir.path().join("feedback.json");
     let mut l = Ledger::default();
     l.mark_offered("a", 5, "2026-11-03");
     l.record_failure("a", 5);
-    l.save(&p);
+    {
+        let _lock = Ledger::lock(&p).expect("lock");
+        l.save(&p);
+    }
     assert_eq!(Ledger::load(&p), l);
+    assert!(!p.with_extension("json.tmp").exists(), "temp file renamed into place");
     assert_eq!(Ledger::load(&dir.path().join("missing.json")), Ledger::default());
 }

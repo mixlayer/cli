@@ -67,11 +67,15 @@ fn main() -> ExitCode {
             return ExitCode::from(code as u8);
         }
     };
+    let parsed = matches.clone();
     let matches = match apply_profile(&argv, matches) {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Error: {e:#}");
-            return ExitCode::from(exit::status_of(&e));
+            let status = exit::status_of(&e);
+            let (path, leaf) = leaf_matches(&parsed);
+            feedback::offer_after_error(&path, status, &globals(leaf), config_flag(leaf));
+            return ExitCode::from(status);
         }
     };
     match run(&matches) {
@@ -84,11 +88,15 @@ fn main() -> ExitCode {
             let status = exit::status_of(&e);
             if !child {
                 let (path, leaf) = leaf_matches(&matches);
-                feedback::offer_after_error(&path, status, &globals(leaf));
+                feedback::offer_after_error(&path, status, &globals(leaf), config_flag(leaf));
             }
             ExitCode::from(status)
         }
     }
+}
+
+fn config_flag(m: &ArgMatches) -> Option<&str> {
+    m.try_get_one::<String>("config").ok().flatten().map(String::as_str)
 }
 
 fn parse(argv: &[std::ffi::OsString]) -> Result<ArgMatches, clap::Error> {
