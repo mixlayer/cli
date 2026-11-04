@@ -142,7 +142,11 @@ pub fn build() -> Command {
             agent_context = agent_context.after_help(format!("Examples:\n{example}"));
         }
     }
-    root = root.subcommand(crate::feedback::command());
+    root = root
+        .subcommand(crate::feedback::command())
+        .subcommand(crate::login::login_command())
+        .subcommand(crate::login::logout_command())
+        .subcommand(crate::login::billing_command());
     root.subcommand(
         agent_context.arg(
             Arg::new("pretty")

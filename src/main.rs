@@ -287,6 +287,9 @@ fn run(m: &ArgMatches) -> anyhow::Result<()> {
             output::write_stdout(&buf)
         }
         _ => {
+            if let Some(result) = mixlayer::login::dispatch(&path, leaf, &g) {
+                return result;
+            }
             if let Some(result) = shield_cmd::dispatch(&path, leaf, &g) {
                 return result;
             }
