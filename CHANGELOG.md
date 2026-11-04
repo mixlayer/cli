@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `mxl login` (device flow with paste/`--with-token` fallback), `mxl logout`, and `mxl billing balance|add-card|add-credit`.
 - `--dry-run` on `ladder`, `escalate`, `council`, `compare`, `ask` and `shield ask` now shows the models the real run will call. It picks them from the live catalog the CLI cached in the last hour (any real run or `mxl models list --live-prices` refreshes it) and still sends no requests. Before, a dry run without `--rungs` or `--model` always showed the built-in list, so a model in your catalog such as DeepSeek was missing from the preview and then called in the real run. `catalog_source` says which catalog the preview used; with no cache it is `offline_fallback`, as before.
 
 ## v0.3.1 (2026-10-19)

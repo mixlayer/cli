@@ -404,3 +404,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as desc
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+## Login and billing
+
+```sh
+mxl login                                   # browser, or paste a key (hidden)
+printf %s "$KEY" | mxl login --with-token   # scripts and agents
+mxl billing balance
+mxl billing add-card
+mxl billing add-credit --amount 25 --yes
+```
+
+See [docs/login-billing.md](docs/login-billing.md).
